@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/home.svg</file>
+        <file>icons/send.svg</file>
+        <file>icons/receive.svg</file>
+        <file>icons/history.svg</file>
+        <file>icons/settings.svg</file>
+        <file>icons/copy.svg</file>
+        <file>icons/qr.svg</file>
+        <file>icons/lock.svg</file>
+        <file>icons/unlock.svg</file>
+        <file>icons/staking.svg</file>
+        <file>icons/network.svg</file>
+        <file>icons/backup.svg</file>
+        <file>icons/import.svg</file>
+        <file>icons/export.svg</file>
+        <file>images/logo_2x2coin.png</file>
+        <file>images/splash_bg.png</file>
+    </qresource>
+</RCC>

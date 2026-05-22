@@ -1,0 +1,19 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>pages/MainPage.qml</file>
+        <file>pages/WelcomePage.qml</file>
+        <file>pages/CreateWalletPage.qml</file>
+        <file>pages/RestoreWalletPage.qml</file>
+        <file>pages/LockScreenPage.qml</file>
+        <file>pages/OverviewTab.qml</file>
+        <file>pages/SendTab.qml</file>
+        <file>pages/ReceiveTab.qml</file>
+        <file>pages/HistoryTab.qml</file>
+        <file>pages/SettingsTab.qml</file>
+        <file>components/PageHeader.qml</file>
+        <file>components/TransactionListItem.qml</file>
+        <file>components/NotificationBar.qml</file>
+        <file>components/Snackbar.qml</file>
+    </qresource>
+</RCC>
