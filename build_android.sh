@@ -124,6 +124,7 @@ log_success "Build completed successfully!"
 APK_PATH=$(find android-build -name "*.apk" | grep release | head -n 1)
 if [ -n "$APK_PATH" ]; then
     cp "$APK_PATH" ../2x2coin-wallet-release.apk
+    cp "$APK_PATH" ../$BUILD_DIR/2x2coin-wallet-release.apk
     log_info "APK copied to root: 2x2coin-wallet-release.apk"
 else
     log_error "APK generated but not located!"
@@ -169,16 +170,11 @@ TARGET_NAME="2x2coin-wallet"
 APK_BRUTO="${TARGET_NAME}-release.apk"
 APK_FINAL="${TARGET_NAME}.apk"
 KEYSTORE_NAME="debug.keystore"
-APK_RELEASE_DIR="${BUILD_DIR}"
+APK_RELEASE_DIR="$BUILD_DIR"
 
 # Verificar se a variável BUILD_DIR foi definida e se a pasta existe
 if [ -z "$APK_RELEASE_DIR" ]; then
     echo "[ERRO] A variável \$BUILD_DIR está vazia. Certifique-se de defini-la no início do script."
-    exit 1
-fi
-
-if [ ! -d "$APK_RELEASE_DIR" ]; then
-    echo "[ERRO] Pasta de destino especificada não encontrada em: $APK_RELEASE_DIR"
     exit 1
 fi
 
@@ -238,18 +234,15 @@ fi
 # ==============================================================================
 echo "[INFO] Copiando o arquivo assinado para a pasta de destino..."
 
-# Garante a remoção de cópias antigas no destino para evitar sobreposição corrompida
-rm -f "${APK_RELEASE_DIR}/${APK_FINAL}"
-
-cp "$APK_FINAL" "${APK_RELEASE_DIR}/${APK_FINAL}"
+cp "$APK_FINAL" "$BUILD_DIR/${APK_FINAL}"
 
 if [ $? -eq 0 ]; then
     echo "=========================================================================="
     echo "[SUCESSO] Processo concluído! O aplicativo foi alinhado, assinado e movido."
     echo "[LOCAL ORIGINAL] $(pwd)/${APK_FINAL}"
-    echo "[CÓPIA DESTINO]  ${APK_RELEASE_DIR}/${APK_FINAL}"
+    echo "[CÓPIA DESTINO]  "$BUILD_DIR/${APK_FINAL}"
     echo "=========================================================================="
 else
-    echo "[ERRO] Falha ao copiar o arquivo final para a pasta ${APK_RELEASE_DIR}"
+    echo "[ERRO] Falha ao copiar o arquivo final para a pasta $BUILD_DIR"
     exit 1
 fi
