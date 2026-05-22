@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuração de segurança de rede para o 2X2Coin Wallet
+    Permite conexões com os nós da rede 2X2Coin
+-->
+<network-security-config>
+    <!-- Configuração base: usar certificados do sistema -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Domínios dos seeds DNS da rede 2X2Coin -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">seed.2x2coin.com</domain>
+        <domain includeSubdomains="false">161.97.176.125</domain>
+        <domain includeSubdomains="false">77.237.232.84</domain>
+        <domain includeSubdomains="false">75.119.137.26</domain>
+        <domain includeSubdomains="false">149.102.139.53</domain>
+        <domain includeSubdomains="false">144.91.107.244</domain>
+        <domain includeSubdomains="false">38.242.236.173</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

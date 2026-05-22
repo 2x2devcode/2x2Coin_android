@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">2X2Coin Wallet</string>
+    <string name="app_description">Carteira oficial 2X2Coin para Android</string>
+    <string name="coin_name">2x2Coin</string>
+    <string name="coin_ticker">2X2</string>
+    <string name="network_mainnet">Rede Principal</string>
+    <string name="network_testnet">Rede de Teste</string>
+    <string name="wallet_title">Minha Carteira 2X2Coin</string>
+    <string name="send_title">Enviar 2X2</string>
+    <string name="receive_title">Receber 2X2</string>
+    <string name="transactions_title">Transações</string>
+    <string name="settings_title">Configurações</string>
+    <string name="security_title">Segurança</string>
+    <string name="backup_title">Backup da Carteira</string>
+    <string name="restore_title">Restaurar Carteira</string>
+    <string name="about_title">Sobre o 2X2Coin</string>
+    <string name="camera_permission_rationale">Permissão de câmera necessária para escanear QR codes de endereços</string>
+    <string name="storage_permission_rationale">Permissão de armazenamento necessária para backup da carteira</string>
+    <string name="biometric_prompt_title">Autenticação Biométrica</string>
+    <string name="biometric_prompt_subtitle">Confirme sua identidade para acessar a carteira</string>
+    <string name="biometric_prompt_description">Use sua impressão digital ou reconhecimento facial</string>
+    <string name="biometric_prompt_negative">Usar PIN</string>
+</resources>
