@@ -124,16 +124,13 @@ bool WalletManager::createWallet(const QString& passphrase) {
     if (!m_hdWallet->createNew(passphrase)) {
         Q_EMIT errorOccurred("Falha ao criar carteira");
         return false;
-    m_currentPassword = passphrase;
+    }
     
-    return saveToStorage();
-}
-
+    m_currentPassword = passphrase;
     m_currentAddress = m_hdWallet->deriveReceiveAddress(0);
     m_initialized = true;
     m_locked = false;
 
-    // Salvar wallet
     if (!saveToStorage()) {
         Q_EMIT errorOccurred("Falha ao salvar carteira");
         return false;
@@ -191,14 +188,25 @@ bool WalletManager::loadWallet(const QString& password) {
 }
 
 bool WalletManager::saveWallet(const QString& password) {
+    if (!password.isEmpty()) {
+        m_currentPassword = password;
+    }
     return saveToStorage();
 }
 
 bool WalletManager::saveToStorage() const {
-QString walletPath = getWalletFilePath();
-    // IMPORTANTE: Use uma senha real ou o sistema de Keystore do Android
-    // Para correção imediata, garanta que a senha de salvamento seja a mesma do carregamento
-    return m_hdWallet->saveToFile(walletPath, m_currentPassword); 
+
+    QString walletPath = getWalletFilePath();
+    return m_hdWallet->saveToFile(walletPath, m_currentPassword);
+}
+bool WalletManager::loadFromStorage() {
+    QString walletPath = getWalletFilePath();
+    if (!QFile::exists(walletPath)) {
+        return false;
+    }
+    m_initialized = true;
+    m_locked = true;
+    return true;
 }
 
 bool WalletManager::lockWallet() {
