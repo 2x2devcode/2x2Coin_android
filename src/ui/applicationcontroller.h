@@ -69,6 +69,18 @@ public:
     bool stakingEnabled() const;
     QString currentPage() const { return m_currentPage; }
     void setCurrentPage(const QString& page);
+    Q_PROPERTY(QVariantMap settings READ settings NOTIFY settingsChanged)
+ 
+     // public
+    QVariantMap settings() const {
+      QVariantMap s;
+      s["darkTheme"] = true;
+      s["notifications"] = true;
+      s["biometric"] = false;
+      s["testnet"] = false;
+      return s;
+    }
+
 
     // ============================================================
     // Métodos invocáveis do QML
@@ -164,6 +176,7 @@ Q_SIGNALS:
     void addressChanged();
     void stakingChanged();
     void pageChanged();
+    void settingsChanged();
 
     // Eventos da wallet
     void walletCreated(const QStringList& mnemonic);
