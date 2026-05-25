@@ -74,6 +74,8 @@ BUILD_DIR="build-android-arm64-release"
 log_info "Cleaning previous build directory..."
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
 mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR/android-build/src/main"
+cp android/AndroidManifest.xml $BUILD_DIR/android-build/src/main/
 cd "$BUILD_DIR"
 
 # 5. Run qmake
