@@ -143,7 +143,7 @@ private Q_SLOTS:
 private:
     // Chamada RPC genérica
     void rpcCall(const QString& method, const QJsonArray& params,
-                 std::function<void(const QJsonObject&)> callback);
+                  std::function<void(const QJsonValue&)> callback);
 
     // Construir URL RPC
     QString rpcUrl() const;
@@ -173,7 +173,7 @@ private:
     QTimer* m_pollTimer;
 
     // Callbacks pendentes
-    QMap<int, std::function<void(const QJsonObject&)>> m_pendingCallbacks;
+    QMap<int, std::function<void(const QJsonValue&)>> m_pendingCallbacks;
     int m_rpcIdCounter;
 
     // Peers descobertos
