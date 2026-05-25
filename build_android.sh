@@ -69,6 +69,16 @@ if [ ! -d "$OPENSSL_ANDROID" ]; then
     git clone https://github.com/KDAB/android_openssl.git "$OPENSSL_ANDROID" >> "$LOG_FILE" 2>&1
 fi
 
+# 3b. Generate placeholder image assets (logo, splash, launcher icon)
+log_info "Generating image assets..."
+if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/generate_assets.py >> "$LOG_FILE" 2>&1 || log_info "Asset script skipped (non-fatal)."
+elif command -v python >/dev/null 2>&1; then
+    python scripts/generate_assets.py >> "$LOG_FILE" 2>&1 || log_info "Asset script skipped (non-fatal)."
+else
+    log_info "Python not found; ensure assets/images/*.png and android/res/drawable/ic_launcher.png exist."
+fi
+
 # 4. Configure Build Directory (Limpeza e preparação nativa)
 BUILD_DIR="build-android-arm64-release"
 log_info "Cleaning previous build directory..."
@@ -160,7 +170,20 @@ echo "[INFO] Iniciando processo de pós-compilação..."
 TARGET_NAME="2x2coin-wallet"
 APK_BRUTO="${TARGET_NAME}-release.apk"
 APK_FINAL="${TARGET_NAME}.apk"
-KEYSTORE_NAME="debug.keystore"
+KEYSTORE_NAME="android/debug.keystore"
+
+if [ ! -f "$KEYSTORE_NAME" ]; then
+    log_info "Creating debug keystore for Gradle/APK signing..."
+    keytool -genkey -v \
+      -keystore "$KEYSTORE_NAME" \
+      -storepass android \
+      -alias androiddebugkey \
+      -keypass android \
+      -keyalg RSA \
+      -keysize 2048 \
+      -validity 10000 \
+      -dname "CN=Android Debug,O=Android,C=US" >> "$LOG_FILE" 2>&1
+fi
 
 if [ ! -f "$APK_BRUTO" ]; then
     APK_BRUTO=$(ls *-unsigned.apk 2>/dev/null | head -n 1)
@@ -172,19 +195,6 @@ fi
 if [ -z "$APK_BRUTO" ] || [ ! -f "$APK_BRUTO" ]; then
     echo "[ERRO] APK bruto para alinhar não foi encontrado na pasta atual!"
     exit 1
-fi
-
-if [ ! -f "$KEYSTORE_NAME" ]; then
-    echo "[INFO] Criando chave de assinatura temporária ($KEYSTORE_NAME)..."
-    keytool -genkey -v \
-      -keystore "$KEYSTORE_NAME" \
-      -storepass android \
-      -alias androiddebugkey \
-      -keypass android \
-      -keyalg RSA \
-      -keysize 2048 \
-      -validity 10000 \
-      -dname "CN=Android Debug,O=Android,C=US"
 fi
 
 echo "[INFO] Aplicando zipalign no arquivo: $APK_BRUTO"
