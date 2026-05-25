@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QStandardPaths>
+#include <QTimer>
 
 #include "ui/applicationcontroller.h"
 #include "wallet/walletmanager.h"
@@ -21,7 +22,6 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDateTime>
-#include <QStandardPaths>
 
 void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
     // Descobre a pasta interna protegida do aplicativo no Android
@@ -68,16 +68,13 @@ int main(int argc, char *argv[])
     // Inicializar parâmetros da rede
     Coin2x2::ChainParams::instance().setNetwork(Coin2x2::ChainParams::MAIN);
 
-    // Registrar tipos QML
-    Coin2x2::ApplicationController::registerQmlTypes();
-
-    // Criar controlador principal
+    // Criar controlador principal (singleton para QML)
     Coin2x2::ApplicationController controller;
-
-    // Configurar engine QML
+    Coin2x2::ApplicationController::setInstance(&controller);
+    Coin2x2::ApplicationController::registerQmlTypes();
+ 
     QQmlApplicationEngine engine;
 
-    // Expor controlador ao QML
     controller.initialize(&engine);
 
     // Carregar QML principal
