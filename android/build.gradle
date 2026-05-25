@@ -21,7 +21,16 @@ android {
     namespace "com.coin2x2.wallet"
     compileSdkVersion 34
     buildToolsVersion "34.0.0"
-
+    
+    buildFeatures {
+        buildConfig true // Necessário para gerar a classe BuildConfig
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true // Garante que as bibliotecas .so sejam encontradas
+        }
+    }
+    
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
