@@ -43,8 +43,9 @@ public:
     explicit ApplicationController(QObject* parent = nullptr);
     ~ApplicationController();
 
-    // Registrar tipos QML
     static void registerQmlTypes();
+    static void setInstance(ApplicationController* instance);
+    static ApplicationController* instance();
 
     // Inicializar e conectar ao QML engine
     void initialize(QQmlApplicationEngine* engine);
