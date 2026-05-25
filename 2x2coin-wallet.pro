@@ -14,8 +14,9 @@ CONFIG += c++17 qtquickcompiler
 VERSION = 2.0.2
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 
-ANDROID_EXTRA_LIBS += /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libcrypto.so \
-                      /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libssl.so
+    ANDROID_EXTRA_LIBS += $$OPENSSL_ARCH_PATH/libcrypto.so \
+                          $$OPENSSL_ARCH_PATH/libssl.so
+
 # Arquivos fonte C++
 SOURCES += \
     src/main.cpp \
@@ -64,15 +65,14 @@ android {
 
     # Caminho do OpenSSL (KDAB Structure)
     OPENSSL_ROOT = $$(OPENSSL_ANDROID)
-    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = /root/openssl-android
+    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $$PWD/../openssl-android
 
-    # No repositório KDAB, o include fica dentro da pasta da arquitetura
     OPENSSL_ARCH_PATH = $$OPENSSL_ROOT/arm64-v8a
     
     INCLUDEPATH += $$OPENSSL_ARCH_PATH/include
-    DEPENDPATH += $$OPENSSL_ARCH_PATH/include
-    
     LIBS += -L$$OPENSSL_ARCH_PATH -lssl -lcrypto
+
+    DEPENDPATH += $$OPENSSL_ARCH_PATH/include
     
     # Forçar inclusão para o compilador
     QMAKE_CXXFLAGS += -I$$OPENSSL_ARCH_PATH/include
