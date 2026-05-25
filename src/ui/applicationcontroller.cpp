@@ -13,10 +13,18 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QJniObject>
-#include <QCoreApplication>
+#include <QtCore/qnativeinterface.h>
 #include <QGuiApplication>
 
 namespace Coin2x2 {
+
+static ApplicationController* g_appInstance = nullptr;
+void ApplicationController::setInstance(ApplicationController* instance) {
+    g_appInstance = instance;
+}
+ApplicationController* ApplicationController::instance() {
+    return g_appInstance;
+}
 
 ApplicationController::ApplicationController(QObject* parent)
     : QObject(parent)
@@ -33,7 +41,11 @@ void ApplicationController::registerQmlTypes() {
     qmlRegisterSingletonType<ApplicationController>(
         "Coin2x2", 1, 0, "App",
         [](QQmlEngine*, QJSEngine*) -> QObject* {
-            return new ApplicationController();
+            if (g_appInstance) {
+                return g_appInstance;
+            }
+            static ApplicationController fallback;
+            return &fallback;    
         }
     );
 }
@@ -516,7 +528,7 @@ void ApplicationController::authenticateWithBiometric() {
     if (activity.isValid()) {
         // Chamar autenticação biométrica via JNI
         QJniObject::callStaticMethod<void>(
-            "com/2x2coin/wallet/BiometricHelper",
+            "com/coin2x2/wallet/BiometricHelper",
             "authenticate",
             "(Landroid/app/Activity;)V",
             activity.object()
@@ -540,17 +552,17 @@ void ApplicationController::showNotification(const QString& title, const QString
 
     if (activity.isValid()) {
         QJniObject::callStaticMethod<void>(
-            "com/2x2coin/wallet/NotificationHelper",
+            "com/coin2x2/wallet/NotificationHelper",
             "showNotification",
             "(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;)V",
             activity.object(),
             jTitle.object(),
             jMessage.object()
-        ); 
+        );
     }
 #else
     qDebug() << "Notificação:" << title << "-" << message;
 #endif
 }
 
-} // namespace 2x2Coin
+} // namespace Coin2x2
