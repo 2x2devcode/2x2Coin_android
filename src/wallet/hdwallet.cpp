@@ -5,6 +5,8 @@
 
 #include "hdwallet.h"
 #include "../core/base58.h"
+#include "../crypto/sha256.h"
+#include "../crypto/secp256k1_wrapper.h"
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>
 #include <QRandomGenerator>
@@ -20,8 +22,49 @@
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <openssl/ripemd.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
 
 namespace Coin2x2 {
+
+        return QByteArray();
+    }
+    if (payload.left(8) != QByteArray(kWalletFileMagic, 8)) {
+        return QByteArray();
+    }
+    QByteArray iv = payload.mid(8, 16);
+    QByteArray cipher = payload.mid(24);
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        return QByteArray();
+    }
+    QByteArray plain(cipher.size() + EVP_MAX_BLOCK_LENGTH, 0);
+    int outLen = 0;
+    int totalLen = 0;
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr,
+                           reinterpret_cast<const unsigned char*>(key32.constData()),
+                           reinterpret_cast<const unsigned char*>(iv.constData())) != 1
+        || EVP_DecryptUpdate(ctx,
+                             reinterpret_cast<unsigned char*>(plain.data()), &outLen,
+                             reinterpret_cast<const unsigned char*>(cipher.constData()),
+                             cipher.size()) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return QByteArray();
+    }
+    totalLen = outLen;
+    if (EVP_DecryptFinal_ex(ctx,
+                            reinterpret_cast<unsigned char*>(plain.data()) + outLen,
+                            &outLen) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return QByteArray();
+    }
+    EVP_CIPHER_CTX_free(ctx);
+    totalLen += outLen;
+    plain.resize(totalLen);
+    return plain;
+}
+} // namespace
 
 // ============================================================
 // BIP39 - Lista de palavras e geração de mnemônico
@@ -345,31 +388,9 @@ bool BIP39::validateMnemonic(const QStringList& words) {
 }
 
 QByteArray BIP39::mnemonicToSeed(const QStringList& words, const QString& passphrase) {
-    QString mnemonic = words.join(" ");
-    QString salt = "mnemonic" + passphrase;
-
-    // PBKDF2-HMAC-SHA512 com 2048 iterações
-    QByteArray mnemonicBytes = mnemonic.toUtf8();
-    QByteArray saltBytes = salt.toUtf8();
-
-    // Implementação simplificada de PBKDF2
-    QByteArray seed(64, 0);
-    const int iterations = 2048;
-    const int dkLen = 64;
-
-    // Bloco 1
-    QByteArray u = saltBytes + QByteArray("\x00\x00\x00\x01", 4);
-    u = QMessageAuthenticationCode::hash(u, mnemonicBytes, QCryptographicHash::Sha512);
-    QByteArray t = u;
-
-    for (int i = 1; i < iterations; ++i) {
-        u = QMessageAuthenticationCode::hash(u, mnemonicBytes, QCryptographicHash::Sha512);
-        for (int j = 0; j < dkLen; ++j) {
-            t[j] = t[j] ^ u[j];
-        }
-    }
-
-    return t;
+    QString mnemonic = words.join(QLatin1Char(' '));
+    QByteArray salt = QByteArray("mnemonic") + passphrase.toUtf8();
+    return Crypto::pbkdf2HmacSha512(mnemonic.toUtf8(), salt, 2048, 64);
 }
 
 // ============================================================
@@ -465,21 +486,17 @@ HDNode HDWallet::deriveChildKey(const HDNode& parent, uint32_t index) const {
     QByteArray IL = I.left(32);
     QByteArray IR = I.right(32);
 
-    // child_key = (IL + parent_key) mod n
-    // Implementação simplificada - em produção usar libsecp256k1
+    
     child.chainCode = IR;
-
-    // Para simplificação, usamos adição modular básica
-    // Em produção: usar secp256k1_ec_privkey_tweak_add
-    child.privateKey = QByteArray(32, 0);
-    int carry = 0;
-    for (int i = 31; i >= 0; --i) {
-        int sum = (unsigned char)IL[i] + (unsigned char)parent.privateKey[i] + carry;
-        child.privateKey[i] = (char)(sum & 0xFF);
-        carry = sum >> 8;
+    child.privateKey = parent.privateKey;
+    if (!Crypto::privateKeyAdd(child.privateKey, IL)) {
+        return HDNode();
     }
-
-    child.publicKey = secp256k1PrivToPub(child.privateKey);
+    
+    child.publicKey = Crypto::privateKeyToPublicKey(child.privateKey, true);
+    if (child.publicKey.isEmpty()) {
+        child.publicKey = secp256k1PrivToPub(child.privateKey);
+    }
 
     // Calcular fingerprint (primeiros 4 bytes do hash160 da chave pública pai)
     QByteArray parentPubHash = hash160(parent.publicKey);
@@ -609,18 +626,11 @@ bool HDWallet::saveToFile(const QString& filePath, const QString& password) cons
     obj["change_index"] = (int)m_changeIndex;
 
     QJsonDocument doc(obj);
-    QByteArray data = doc.toJson();
-
-    // Criptografar com AES-256 usando a senha
-    // Em produção: usar QAESEncryption ou OpenSSL AES
-    QByteArray key = QCryptographicHash::hash(
-        password.toUtf8(), QCryptographicHash::Sha256
-    );
-
-    // XOR simples para demonstração - em produção usar AES-256-GCM
-    QByteArray encrypted(data.size(), 0);
-    for (int i = 0; i < data.size(); ++i) {
-        encrypted[i] = data[i] ^ key[i % key.size()];
+    QByteArray data = doc.toJson(QJsonDocument::Compact);
+    QByteArray key = deriveFileKey(password);
+    QByteArray encrypted = encryptWalletPayload(data, key);
+    if (encrypted.isEmpty()) {
+        return false;
     }
 
     QFile file(filePath);
@@ -638,13 +648,11 @@ bool HDWallet::loadFromFile(const QString& filePath, const QString& password) {
     QByteArray encrypted = file.readAll();
     file.close();
 
-    QByteArray key = QCryptographicHash::hash(
-        password.toUtf8(), QCryptographicHash::Sha256
-    );
-
-    QByteArray data(encrypted.size(), 0);
-    for (int i = 0; i < encrypted.size(); ++i) {
-        data[i] = encrypted[i] ^ key[i % key.size()];
+    QByteArray key = deriveFileKey(password);
+    QByteArray data = decryptWalletPayload(encrypted, key);
+    if (data.isEmpty()) {
+        Q_EMIT errorOccurred("Senha incorreta ou arquivo de carteira inválido");
+        return false;
     }
 
     QJsonDocument doc = QJsonDocument::fromJson(data);
