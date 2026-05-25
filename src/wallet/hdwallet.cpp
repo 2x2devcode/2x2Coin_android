@@ -28,43 +28,127 @@
 
 namespace Coin2x2 {
 
+namespace WalletFileCrypto {
+
+static const char kMagic[] = "2X2WENC1";
+static const int kMagicLen = 8;
+static const int kIvLen = 16;
+
+static QByteArray deriveKey(const QString& password) {
+    return QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Sha256);
+}
+
+static QByteArray encryptPayload(const QByteArray& plain, const QByteArray& key32) {
+    if (key32.size() != 32 || plain.isEmpty()) {
         return QByteArray();
     }
-    if (payload.left(8) != QByteArray(kWalletFileMagic, 8)) {
+
+    QByteArray iv(kIvLen, 0);
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(iv.data()), kIvLen) != 1) {
         return QByteArray();
     }
-    QByteArray iv = payload.mid(8, 16);
-    QByteArray cipher = payload.mid(24);
+
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
         return QByteArray();
     }
-    QByteArray plain(cipher.size() + EVP_MAX_BLOCK_LENGTH, 0);
+
+    bool ok = false;
+    QByteArray cipher;
     int outLen = 0;
     int totalLen = 0;
-    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr,
-                           reinterpret_cast<const unsigned char*>(key32.constData()),
-                           reinterpret_cast<const unsigned char*>(iv.constData())) != 1
-        || EVP_DecryptUpdate(ctx,
-                             reinterpret_cast<unsigned char*>(plain.data()), &outLen,
-                             reinterpret_cast<const unsigned char*>(cipher.constData()),
-                             cipher.size()) != 1) {
-        EVP_CIPHER_CTX_free(ctx);
-        return QByteArray();
-    }
-    totalLen = outLen;
-    if (EVP_DecryptFinal_ex(ctx,
-                            reinterpret_cast<unsigned char*>(plain.data()) + outLen,
-                            &outLen) != 1) {
-        EVP_CIPHER_CTX_free(ctx);
-        return QByteArray();
-    }
+
+    do {
+        if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr,
+                reinterpret_cast<const unsigned char*>(key32.constData()),
+                reinterpret_cast<const unsigned char*>(iv.constData())) != 1) {
+            break;
+        }
+
+        cipher.resize(plain.size() + EVP_MAX_BLOCK_LENGTH);
+        if (EVP_EncryptUpdate(ctx,
+                reinterpret_cast<unsigned char*>(cipher.data()), &outLen,
+                reinterpret_cast<const unsigned char*>(plain.constData()),
+                plain.size()) != 1) {
+            break;
+        }
+        totalLen = outLen;
+
+        if (EVP_EncryptFinal_ex(ctx,
+                reinterpret_cast<unsigned char*>(cipher.data()) + outLen,
+                &outLen) != 1) {
+            break;
+        }
+        totalLen += outLen;
+        cipher.resize(totalLen);
+        ok = true;
+    } while (false);
+
     EVP_CIPHER_CTX_free(ctx);
-    totalLen += outLen;
-    plain.resize(totalLen);
-    return plain;
+    if (!ok) {
+        return QByteArray();
+    }
+
+    QByteArray payload;
+    payload.append(kMagic, kMagicLen);
+    payload.append(iv);
+    payload.append(cipher);
+    return payload;
 }
-} // namespace
+
+static QByteArray decryptPayload(const QByteArray& payload, const QByteArray& key32) {
+    if (key32.size() != 32 || payload.size() < kMagicLen + kIvLen + 1) {
+        return QByteArray();
+    }
+    if (payload.left(kMagicLen) != QByteArray(kMagic, kMagicLen)) {
+        return QByteArray();
+    }
+
+    QByteArray iv = payload.mid(kMagicLen, kIvLen);
+    QByteArray cipher = payload.mid(kMagicLen + kIvLen);
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        return QByteArray();
+    }
+
+    bool ok = false;
+    QByteArray plain;
+    int outLen = 0;
+    int totalLen = 0;
+
+    do {
+        if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr,
+                reinterpret_cast<const unsigned char*>(key32.constData()),
+                reinterpret_cast<const unsigned char*>(iv.constData())) != 1) {
+            break;
+        }
+
+        plain.resize(cipher.size() + EVP_MAX_BLOCK_LENGTH);
+        if (EVP_DecryptUpdate(ctx,
+                reinterpret_cast<unsigned char*>(plain.data()), &outLen,
+                reinterpret_cast<const unsigned char*>(cipher.constData()),
+                cipher.size()) != 1) {
+            break;
+        }
+        totalLen = outLen;
+
+        if (EVP_DecryptFinal_ex(ctx,
+                reinterpret_cast<unsigned char*>(plain.data()) + outLen,
+                &outLen) != 1) {
+            break;
+        }
+        totalLen += outLen;
+        plain.resize(totalLen);
+        ok = true;
+    } while (false);
+
+    EVP_CIPHER_CTX_free(ctx);
+    return ok ? plain : QByteArray();
+}
+
+} // namespace WalletFileCrypto
+
 
 // ============================================================
 // BIP39 - Lista de palavras e geração de mnemônico
@@ -627,8 +711,8 @@ bool HDWallet::saveToFile(const QString& filePath, const QString& password) cons
 
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson(QJsonDocument::Compact);
-    QByteArray key = deriveFileKey(password);
-    QByteArray encrypted = encryptWalletPayload(data, key);
+    QByteArray key = WalletFileCrypto::deriveKey(password);
+    QByteArray encrypted = WalletFileCrypto::encryptPayload(data, key);
     if (encrypted.isEmpty()) {
         return false;
     }
@@ -648,8 +732,8 @@ bool HDWallet::loadFromFile(const QString& filePath, const QString& password) {
     QByteArray encrypted = file.readAll();
     file.close();
 
-    QByteArray key = deriveFileKey(password);
-    QByteArray data = decryptWalletPayload(encrypted, key);
+    QByteArray key = WalletFileCrypto::deriveKey(password);
+    QByteArray data = WalletFileCrypto::decryptPayload(encrypted, key);
     if (data.isEmpty()) {
         Q_EMIT errorOccurred("Senha incorreta ou arquivo de carteira inválido");
         return false;
