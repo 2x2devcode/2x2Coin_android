@@ -47,12 +47,7 @@ WalletManager::WalletManager(QObject* parent)
 WalletManager::~WalletManager() {}
 
 void WalletManager::initializeDefaults() {
-    // Verificar se existe wallet salva
-    QString walletPath = getWalletFilePath();
-    if (QFile::exists(walletPath)) {
-        m_initialized = true;
-        m_locked = true;
-    }
+    loadFromStorage();
 }
 
 QString WalletManager::getWalletFilePath() const {
