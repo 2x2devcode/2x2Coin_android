@@ -105,7 +105,7 @@ QString WalletManager::formatAmountFull(qint64 satoshis) const {
 
 qint64 WalletManager::parseAmount(const QString& amountStr) const {
     QString clean = amountStr;
-    clean.remove(" 2X2").remove("2X2").trimmed();
+    clean = clean.remove(QStringLiteral(" 2X2")).remove(QStringLiteral("2X2")).trimmed();
     bool ok;
     double amount = clean.toDouble(&ok);
     if (!ok) return 0;
