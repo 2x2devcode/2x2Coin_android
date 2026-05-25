@@ -240,6 +240,7 @@ bool WalletManager::changePassword(const QString& oldPassword, const QString& ne
         return false;
     }
 
+    m_currentPassword = newPassword;
     Q_EMIT infoMessage("Senha alterada com sucesso");
     return true;
 }
