@@ -123,7 +123,10 @@ bool WalletManager::createWallet(const QString& passphrase) {
     if (!m_hdWallet->createNew(passphrase)) {
         Q_EMIT errorOccurred("Falha ao criar carteira");
         return false;
-    }
+    m_currentPassword = passphrase;
+    
+    return saveToStorage();
+}
 
     m_currentAddress = m_hdWallet->deriveReceiveAddress(0);
     m_initialized = true;
@@ -172,6 +175,7 @@ bool WalletManager::loadWallet(const QString& password) {
         Q_EMIT errorOccurred("Senha incorreta ou arquivo de carteira corrompido");
         return false;
     }
+    m_currentPassword = password;
 
     m_currentAddress = m_hdWallet->deriveReceiveAddress(
         m_hdWallet->nextReceiveIndex()
