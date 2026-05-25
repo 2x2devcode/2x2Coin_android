@@ -14,8 +14,10 @@ CONFIG += c++17 qtquickcompiler
 VERSION = 2.0.2
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 
-    ANDROID_EXTRA_LIBS += $$OPENSSL_ARCH_PATH/libcrypto.so \
-                          $$OPENSSL_ARCH_PATH/libssl.so
+    ANDROID_EXTRA_LIBS += /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libcrypto.so \
+                      /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libssl.so
+
+export OPENSSL_ANDROID="/root/openssl-android"
 
 # Arquivos fonte C++
 SOURCES += \
@@ -59,23 +61,24 @@ RESOURCES += \
 
 # Configurações Android
 android {
-    ANDROID_PACKAGE_SOURCE_DIR = $PWD/android
+    ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
     ANDROID_MIN_SDK_VERSION = 23
     ANDROID_TARGET_SDK_VERSION = 34
 
     # Caminho do OpenSSL (KDAB Structure)
-    OPENSSL_ROOT = $(OPENSSL_ANDROID)
-    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $PWD/../openssl-android
+    OPENSSL_ROOT = $$(OPENSSL_ANDROID)
+    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = /root/openssl-android
 
-    OPENSSL_ARCH_PATH = $OPENSSL_ROOT/arm64-v8a
+    OPENSSL_ARCH_PATH = $$OPENSSL_ROOT/arm64-v8a
     
-    INCLUDEPATH += $OPENSSL_ARCH_PATH/include
-    LIBS += -L$OPENSSL_ARCH_PATH -lssl -lcrypto
+    INCLUDEPATH += $$OPENSSL_ARCH_PATH/include
+    DEPENDPATH += $$OPENSSL_ARCH_PATH/include
+    
+    LIBS += -L$$OPENSSL_ARCH_PATH -lssl -lcrypto
 
-    DEPENDPATH += $OPENSSL_ARCH_PATH/include
     
     # Forçar inclusão para o compilador
-    QMAKE_CXXFLAGS += -I$OPENSSL_ARCH_PATH/include
+    QMAKE_CXXFLAGS += -I$$OPENSSL_ARCH_PATH/include
 } else {
     LIBS += -lssl -lcrypto
 }
