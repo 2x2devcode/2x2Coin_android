@@ -190,15 +190,10 @@ bool WalletManager::saveWallet(const QString& password) {
 }
 
 bool WalletManager::saveToStorage() const {
-    QString walletPath = getWalletFilePath();
-    // Usar senha padrão vazia para armazenamento local
-    // Em produção: solicitar senha ao usuário ou usar keystore Android
-    return m_hdWallet->saveToFile(walletPath, "2x2coin_default");
-}
-
-bool WalletManager::loadFromStorage() {
-    QString walletPath = getWalletFilePath();
-    return m_hdWallet->loadFromFile(walletPath, "2x2coin_default");
+QString walletPath = getWalletFilePath();
+    // IMPORTANTE: Use uma senha real ou o sistema de Keystore do Android
+    // Para correção imediata, garanta que a senha de salvamento seja a mesma do carregamento
+    return m_hdWallet->saveToFile(walletPath, m_currentPassword); 
 }
 
 bool WalletManager::lockWallet() {
