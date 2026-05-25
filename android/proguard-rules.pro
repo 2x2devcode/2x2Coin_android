@@ -1,0 +1,2 @@
+-keep class org.qtproject.qt.android.** { *; }
+-keep interface org.qtproject.qt.android.** { *; }
