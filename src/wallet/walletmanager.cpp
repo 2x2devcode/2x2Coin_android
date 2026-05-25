@@ -13,6 +13,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDebug>
+#include <QDateTime>
 #include <cmath>
 
 namespace Coin2x2 {
