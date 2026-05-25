@@ -17,8 +17,6 @@ DEFINES += APP_VERSION=\\\"$$VERSION\\\"
     ANDROID_EXTRA_LIBS += /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libcrypto.so \
                       /root/openssl-android1/no-asm/ssl_3/arm64-v8a/libssl.so
 
-export OPENSSL_ANDROID="/root/openssl-android"
-
 # Arquivos fonte C++
 SOURCES += \
     src/main.cpp \
