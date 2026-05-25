@@ -59,23 +59,23 @@ RESOURCES += \
 
 # Configurações Android
 android {
-    ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+    ANDROID_PACKAGE_SOURCE_DIR = $PWD/android
     ANDROID_MIN_SDK_VERSION = 23
     ANDROID_TARGET_SDK_VERSION = 34
 
     # Caminho do OpenSSL (KDAB Structure)
-    OPENSSL_ROOT = $$(OPENSSL_ANDROID)
-    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $$PWD/../openssl-android
+    OPENSSL_ROOT = $(OPENSSL_ANDROID)
+    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $PWD/../openssl-android
 
-    OPENSSL_ARCH_PATH = $$OPENSSL_ROOT/arm64-v8a
+    OPENSSL_ARCH_PATH = $OPENSSL_ROOT/arm64-v8a
     
-    INCLUDEPATH += $$OPENSSL_ARCH_PATH/include
-    LIBS += -L$$OPENSSL_ARCH_PATH -lssl -lcrypto
+    INCLUDEPATH += $OPENSSL_ARCH_PATH/include
+    LIBS += -L$OPENSSL_ARCH_PATH -lssl -lcrypto
 
-    DEPENDPATH += $$OPENSSL_ARCH_PATH/include
+    DEPENDPATH += $OPENSSL_ARCH_PATH/include
     
     # Forçar inclusão para o compilador
-    QMAKE_CXXFLAGS += -I$$OPENSSL_ARCH_PATH/include
+    QMAKE_CXXFLAGS += -I$OPENSSL_ARCH_PATH/include
 } else {
     LIBS += -lssl -lcrypto
 }
