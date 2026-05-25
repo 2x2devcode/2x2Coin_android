@@ -27,17 +27,6 @@ ApplicationWindow {
     property bool isFirstRun: !app.hasWallet
     property string currentTheme: "dark"
 
-    // Fonte personalizada
-    FontLoader {
-        id: fontRegular
-        source: "qrc:/assets/fonts/Roboto-Regular.ttf"
-    }
-
-    FontLoader {
-        id: fontBold
-        source: "qrc:/assets/fonts/Roboto-Bold.ttf"
-    }
-
     // Stack de navegação principal
     StackView {
         id: stackView
