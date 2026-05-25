@@ -135,7 +135,7 @@ void NetworkManager::discoverPeers() {
 }
 
 void NetworkManager::rpcCall(const QString& method, const QJsonArray& params,
-                              std::function<void(const QJsonObject&)> callback) {
+                              std::function<void(const QJsonValue&)> callback) {
     int id = ++m_rpcIdCounter;
 
     QJsonObject request;
@@ -196,15 +196,17 @@ void NetworkManager::onRpcReplyFinished(QNetworkReply* reply) {
     // Executar callback
     int id = reply->property("rpc_id").toInt();
     if (m_pendingCallbacks.contains(id)) {
-        QJsonObject result = response["result"].toObject();
-        m_pendingCallbacks[id](result);
+        m_pendingCallbacks[id](response["result"]);
         m_pendingCallbacks.remove(id);
     }
 }
 
 void NetworkManager::getBlockCount() {
-    rpcCall("getblockcount", QJsonArray(), [this](const QJsonObject& result) {
-        int height = result.isEmpty() ? 0 : result.begin()->toInt();
+    rpcCall("getblockcount", QJsonArray(), [this](const QJsonValue& result) {
+        if (!result.isDouble() && !result.isString()) {
+            return;
+        }
+        int height = result.toInt();
         if (height != m_blockHeight) {
             m_blockHeight = height;
             Q_EMIT blockHeightChanged(height, "");
@@ -216,14 +218,18 @@ void NetworkManager::getBlockInfo(int height) {
     QJsonArray params;
     params.append(height);
 
-    rpcCall("getblockhash", params, [this, height](const QJsonObject& hashResult) {
-        QString hash = hashResult.isEmpty() ? "" : hashResult.begin()->toString();
+    rpcCall("getblockhash", params, [this, height](const QJsonValue& hashResult) {
+        QString hash = hashResult.toString();
 
         QJsonArray params2;
         params2.append(hash);
         params2.append(true);
 
-        rpcCall("getblock", params2, [this](const QJsonObject& blockResult) {
+        rpcCall("getblock", params2, [this](const QJsonValue& blockVal) {
+            if (!blockVal.isObject()) {
+                return;
+            }
+            QJsonObject blockResult = blockVal.toObject();
             BlockInfo info;
             info.height = blockResult["height"].toInt();
             info.hash   = blockResult["hash"].toString();
@@ -247,11 +253,21 @@ void NetworkManager::getBalance(const QString& address) {
     addrs.append(address);
     params.append(addrs);
 
-    rpcCall("listunspent", params, [this, address](const QJsonObject& result) {
-        Q_UNUSED(result)
-        // Processar UTXOs e calcular saldo
+    rpcCall("listunspent", params, [this, address](const QJsonValue& result) {
         qint64 confirmed = 0;
         qint64 unconfirmed = 0;
+        if (result.isArray()) {
+            for (const QJsonValue& utxoVal : result.toArray()) {
+                QJsonObject utxo = utxoVal.toObject();
+                qint64 amount = static_cast<qint64>(utxo["amount"].toDouble() * 100000000.0);
+                int conf = utxo["confirmations"].toInt();
+                if (conf > 0) {
+                    confirmed += amount;
+                } else {
+                    unconfirmed += amount;
+                }
+            }
+        }
         Q_EMIT balanceReceived(address, confirmed, unconfirmed);
     });
 }
@@ -261,40 +277,54 @@ void NetworkManager::getTransaction(const QString& txid) {
     params.append(txid);
     params.append(true);
 
-    rpcCall("getrawtransaction", params, [this](const QJsonObject& result) {
-        Q_EMIT transactionReceived(result);
+    rpcCall("getrawtransaction", params, [this](const QJsonValue& result) {
+        if (result.isObject()) {
+            Q_EMIT transactionReceived(result.toObject());
+        }
     });
 }
 
 void NetworkManager::getPeerInfo() {
-    rpcCall("getpeerinfo", QJsonArray(), [this](const QJsonObject& result) {
-        Q_UNUSED(result)
+    rpcCall("getpeerinfo", QJsonArray(), [this](const QJsonValue& result) {
         QList<PeerInfo> peers;
-        // Parsear informações dos peers
+        if (result.isArray()) {
+            for (const QJsonValue& peerVal : result.toArray()) {
+                QJsonObject p = peerVal.toObject();
+                PeerInfo info;
+                info.address = p["addr"].toString();
+                info.port = static_cast<uint16_t>(p["port"].toInt());
+                info.version = p["version"].toInt();
+                info.subversion = p["subver"].toString();
+                info.connected = true;
+                peers.append(info);
+            }
+        }
         Q_EMIT peerInfoReceived(peers);
     });
 }
 
 void NetworkManager::getNetworkInfo() {
-    rpcCall("getnetworkinfo", QJsonArray(), [this](const QJsonObject& result) {
-        m_peerCount = result["connections"].toInt();
-        Q_EMIT networkInfoReceived(result);
+    rpcCall("getnetworkinfo", QJsonArray(), [this](const QJsonValue& result) {
+        if (!result.isObject()) {
+            return;
+        }
+        QJsonObject info = result.toObject();
+        m_peerCount = info["connections"].toInt();
+        Q_EMIT networkInfoReceived(info);
         Q_EMIT peerCountChanged(m_peerCount);
     });
 }
 
 void NetworkManager::getMempoolInfo() {
-    rpcCall("getmempoolinfo", QJsonArray(), [this](const QJsonObject& result) {
-        Q_UNUSED(result)
-    });
+    rpcCall("getmempoolinfo", QJsonArray(), [](const QJsonValue&) {});
 }
 
 void NetworkManager::sendRawTransaction(const QString& rawTx) {
     QJsonArray params;
     params.append(rawTx);
 
-    rpcCall("sendrawtransaction", params, [this](const QJsonObject& result) {
-        QString txid = result.isEmpty() ? "" : result.begin()->toString();
+    rpcCall("sendrawtransaction", params, [this](const QJsonValue& result) {
+        QString txid = result.toString();
         Q_EMIT rawTransactionSent(txid);
     });
 }
@@ -307,16 +337,18 @@ void NetworkManager::estimateFee(int targetBlocks) {
     QJsonArray params;
     params.append(targetBlocks);
 
-    rpcCall("estimatefee", params, [this](const QJsonObject& result) {
-        double feePerKb = result.isEmpty() ? 0.001 : result.begin()->toDouble();
+    rpcCall("estimatefee", params, [this](const QJsonValue& result) {
+        double feePerKb = result.isDouble() ? result.toDouble() : 0.001;
         qint64 feePerKbSatoshis = static_cast<qint64>(feePerKb * 100000000.0);
         Q_EMIT feeEstimateReceived(feePerKbSatoshis);
     });
 }
 
 void NetworkManager::getStakingInfo() {
-    rpcCall("getstakinginfo", QJsonArray(), [this](const QJsonObject& result) {
-        Q_EMIT stakingInfoReceived(result);
+    rpcCall("getstakinginfo", QJsonArray(), [this](const QJsonValue& result) {
+        if (result.isObject()) {
+            Q_EMIT stakingInfoReceived(result.toObject());
+        }
     });
 }
 
