@@ -3,7 +3,6 @@
 //
 // Carteira Hierárquica Determinística (HD Wallet) para 2X2Coin
 // Implementa BIP32, BIP39 (mnemônico) e BIP44 (derivação de caminhos)
-Caminho de derivação: m/44'/0'/0'/0/n (BIP44 coin type 0)
 
 #pragma once
 
