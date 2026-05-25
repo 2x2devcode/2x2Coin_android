@@ -209,9 +209,10 @@ private:
     QList<TransactionRecord> m_transactions;
 
     // Carteira HD
-    std::unique_ptr<HDWallet> m_hdWallet;
+    std::unique_ptr<HDWallet> m_hdWallet; 
 
-    // Singleton
+    mutable QString m_currentPassword; 
+    // Singleton 
     static WalletManager* s_instance;
 };
 
