@@ -299,4 +299,51 @@ check_and_install "keytool" "default-jdk-headless"
 check_and_install "zipalign" "zipalign"
 check_and_install "apksigner" "apksigner"
 
-TARGET_NAME="2x
+TARGET_NAME="2x2coin-wallet"
+APK_RAW="${TARGET_NAME}-release.apk"
+APK_FINAL="${TARGET_NAME}.apk"
+KEYSTORE_NAME="$BUILD_DIR/android-build/debug.keystore"
+
+if [ ! -f "$APK_RAW" ]; then
+    APK_RAW=$(ls *-unsigned.apk 2>/dev/null | head -n 1)
+    if [ -z "$APK_RAW" ]; then
+        APK_RAW=$(ls *release.apk 2>/dev/null | head -n 1)
+    fi
+fi
+
+if [ -z "$APK_RAW" ] || [ ! -f "$APK_RAW" ]; then
+    echo "[ERROR] Raw APK not found!"
+    exit 1
+fi
+
+echo "[INFO] Applying zipalign..."
+rm -f "$APK_FINAL"
+zipalign -v 4 "$APK_RAW" "$APK_FINAL"
+
+if [ $? -ne 0 ]; then
+    echo "[ERROR] zipalign failed."
+    exit 1
+fi
+
+echo "[INFO] Signing APK with apksigner..."
+apksigner sign --ks "$KEYSTORE_NAME" --ks-pass pass:android "$APK_FINAL"
+
+if [ $? -ne 0 ]; then
+    echo "[ERROR] APK signing failed."
+    exit 1
+fi
+
+# 10. Copy Final APK
+echo "[INFO] 10 of 10 Copying signed APK..."
+cp "$APK_FINAL" "$BUILD_DIR/${APK_FINAL}"
+
+if [ $? -eq 0 ]; then
+    echo "=========================================================================="
+    echo "[SUCCESS] Process completed successfully!"
+    echo "[ROOT LOCATION]  $(pwd)/${APK_FINAL}"
+    echo "[BUILD COPY]     $(pwd)/$BUILD_DIR/${APK_FINAL}"
+    echo "=========================================================================="
+else
+    echo "[ERROR] Failed to copy APK to $BUILD_DIR"
+    exit 1
+fi
