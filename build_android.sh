@@ -277,7 +277,7 @@ fi
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
-    --output android-build \
+    --output "$(pwd)/android-build" \
     --android-platform android-35 \
     --jdk "$JAVA_HOME" \
     --gradle \
