@@ -177,18 +177,29 @@ fi
 
 if [ ! -f "$KEYSTORE_NAME" ]; then
     log_info "Creating debug keystore for Gradle/APK signing..."
-    keytool -genkey -v \
-      -keystore "$KEYSTORE_NAME" \
-      -storepass android \
-      -alias androiddebugkey \
-      -keypass android \
-      -keyalg RSA \
-      -keysize 2048 \
-      -validity 10000 \
-      -dname "CN=Android Debug,O=Android,C=US" >> "$LOG_FILE" 2>&1
+
+    # cria o diretório do keystore se não existir
+    mkdir -p "$(dirname "$KEYSTORE_NAME")"
+
+    keytool -genkeypair -v \
+        -keystore "$KEYSTORE_NAME" \
+        -storepass android \
+        -alias androiddebugkey \
+        -keypass android \
+        -keyalg RSA \
+        -keysize 2048 \
+        -validity 10000 \
+        -dname "CN=Android Debug,O=Android,C=US" \
+        >> "$LOG_FILE" 2>&1
+
+    # verifica se o arquivo foi criado
+    if [ ! -f "$KEYSTORE_NAME" ]; then
+        log_error "Failed to create keystore: $KEYSTORE_NAME"
+        exit 1
+    fi
 fi
 
-cp debug.keystore /home/yiimp/2x2Coin_android/build-android-arm64-release/android-build/
+cp $KEYSTORE_NAME/debug.keystore $BUILD_DIR/android-build/
 
 # ==============================================================================
 # 8. Generate APK using androiddeployqt
