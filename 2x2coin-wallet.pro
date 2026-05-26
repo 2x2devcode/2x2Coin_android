@@ -69,10 +69,10 @@ INCLUDEPATH += \
 android {
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
     
-  # SDK — use 35 para Android 15; sobrescreva com ANDROID_TARGET_SDK=35 no ambiente
+  # SDK — use 34 para Android 15; sobrescreva com ANDROID_TARGET_SDK=34 no ambiente
     ANDROID_MIN_SDK_VERSION = 23
     isEmpty(ANDROID_TARGET_SDK) {
-        ANDROID_TARGET_SDK_VERSION = 35
+        ANDROID_TARGET_SDK_VERSION = 34
     } else {
         ANDROID_TARGET_SDK_VERSION = $$ANDROID_TARGET_SDK
     }
