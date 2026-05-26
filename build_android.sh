@@ -277,7 +277,27 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
-# Usamos o realpath para garantir que o diretório termine sem barras sobressalentes
+# ------------------------------------------------------------------------------
+# CORREÇÃO FORÇADA: Injeta o manifesto na pasta de build e corrige o JSON capenga
+# ------------------------------------------------------------------------------
+log_info "Forçando alinhamento do AndroidManifest no esqueleto do build..."
+mkdir -p android-build
+
+# Busca o Manifesto original limpo que está na pasta do seu projeto
+MANIFEST_FONTE="$PROJECT_ROOT/android/AndroidManifest.xml"
+
+if [ -f "$MANIFEST_FONTE" ]; then
+    cp "$MANIFEST_FONTE" android-build/AndroidManifest.xml
+    log_success "Manifesto copiado com sucesso para android-build/"
+else
+    log_error "Manifesto original nao encontrado em $MANIFEST_FONTE"
+fi
+
+# Corrige a linha do JSON para apontar para a pasta atual absoluta do build
+ABS_BUILD_DIR=$(realpath "android-build")
+sed -i "s|\"android-package-source-directory\": \".*\"|\"android-package-source-directory\": \"$ABS_BUILD_DIR\"|g" "$DEPLOY_JSON"
+# ------------------------------------------------------------------------------
+
 ABS_OUTPUT=$(realpath "android-build")
 
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
