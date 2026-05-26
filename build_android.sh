@@ -208,7 +208,15 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
-# AJUSTE CIRÚRGICO: Aponta o JSON para buscar o Manifesto limpo da sua pasta fonte do projeto
+# 1. Garante que a pasta de destino exista
+mkdir -p android-build
+
+# 2. Executa a cópia exata que você solicitou
+log_info "Copiando manualmente o AndroidManifest.xml para a pasta de build..."
+cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
+
+# 3. Ajusta o JSON para apontar para a pasta original do projeto. 
+# Isso impede que o androiddeployqt tente copiar o arquivo de "android-build" para "android-build" (o que gerava o erro de cópia idêntica)
 ABS_SRC_MANIFEST_DIR=$(realpath "$PROJECT_ROOT/android")
 sed -i "s|\"android-package-source-directory\": \".*\"|\"android-package-source-directory\": \"$ABS_SRC_MANIFEST_DIR\"|g" "$DEPLOY_JSON"
 
