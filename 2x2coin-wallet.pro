@@ -133,7 +133,21 @@ android {
 
         DEFINES += HAVE_OPENSSL
         ANDROID_EXTRA_LIBS += $$OPENSSL_CRYPTO_SO $$OPENSSL_SSL_SO
-
+        
+        # KDAB: headers em ssl_3/include (arm64-v8a/include e symlink — pode falhar apos git clone)
+        OPENSSL_INCLUDE =
+        exists($$OPENSSL_ROOT/ssl_3/include/openssl/evp.h) {
+            OPENSSL_INCLUDE = $$OPENSSL_ROOT/ssl_3/include
+        }
+        isEmpty(OPENSSL_INCLUDE) {
+            exists($$OPENSSL_ROOT/ssl_1.1/include/openssl/evp.h) {
+                OPENSSL_INCLUDE = $$OPENSSL_ROOT/ssl_1.1/include
+            }
+        }
+        isEmpty(OPENSSL_INCLUDE) {
+            OPENSSL_INCLUDE = $$OPENSSL_ARCH_PATH/include
+        }
+        message("OpenSSL include: $$OPENSSL_INCLUDE")
         INCLUDEPATH += $$OPENSSL_ARCH_PATH/include
         DEPENDPATH += $$OPENSSL_ARCH_PATH/include
         QMAKE_CXXFLAGS += -I$$OPENSSL_ARCH_PATH/include
