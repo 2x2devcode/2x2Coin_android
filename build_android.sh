@@ -182,11 +182,13 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
 # ==============================================================================
-# 5. Run qmake (Corrigido para encontrar o mkspecs do Android)
+# 5. Run qmake (Corrigido com Injeção Direta de Variáveis de Ambiente)
 # ==============================================================================
 log_info "5 of 10 Configuring project with qmake..."
 
-# Passamos o caminho absoluto para o mkspecs do kit Android usando o $QT_PATH
+# Forçamos as variáveis diretamente antes da chamada do binário
+ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
 "$QT_PATH/bin/qmake" ../2x2coin-wallet.pro \
     -spec "$QT_PATH/mkspecs/android-clang" \
     CONFIG+=release \
