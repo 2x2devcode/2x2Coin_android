@@ -191,6 +191,8 @@ log_info "5 of 10 Configuring project with qmake..."
     OPENSSL_ANDROID="$OPENSSL_ANDROID" \
     ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
     ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+    DEFINES+=OPENSSL_SUPPRESS_DEPRECATED \
+    QMAKE_CXXFLAGS+=-Wno-deprecated-declarations \
     >> "../$LOG_FILE" 2>&1 || log_error "qmake configuration failed."
 
 # 6. Compile C++
