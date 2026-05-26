@@ -30,7 +30,7 @@ log_error() {
 }
 
 # 1. Check Operating System
-log_info "Checking operating system..."
+log_info "1 de 10 Checking operating system..."
 if ! grep -q "22.04" /etc/os-release; then
     log_info "Warning: This script is optimized for Ubuntu 22.04. Your system might be incompatible."
 else
@@ -38,7 +38,7 @@ else
 fi
 
 # 2. Install Dependencies if necessary
-log_info "Checking and installing system dependencies..."
+log_info "2 de 10 Checking and installing system dependencies..."
 DEPS="build-essential cmake git curl wget zip unzip openjdk-17-jdk libssl-dev python3-pip"
 MISSING_DEPS=""
 
@@ -121,7 +121,7 @@ log_success "OpenSSL OK: $OPENSSL_ARCH_DIR"
 export OPENSSL_ANDROID
 
 # 3b. Generate placeholder image assets (logo, splash, launcher icon)
-log_info "Generating image assets..."
+log_info "3 de 10 Generating image assets..."
 if command -v python3 >/dev/null 2>&1; then
     python3 scripts/generate_assets.py >> "$LOG_FILE" 2>&1 || log_info "Asset script skipped (non-fatal)."
 elif command -v python >/dev/null 2>&1; then
@@ -134,7 +134,7 @@ fi
 # 4. Configure Build Directory (Limpeza limpa sem intervenção manual)
 # ==============================================================================
 BUILD_DIR="build-android-arm64-release"
-log_info "Cleaning previous build directory..."
+log_info "4 de 10 Cleaning previous build directory..."
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
 mkdir -p "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/android-build/src/main"
@@ -142,7 +142,7 @@ cp android/AndroidManifest.xml $BUILD_DIR/android-build/src/main/
 cd "$BUILD_DIR"
 
 # 5. Run qmake
-log_info "Configuring project with qmake..."
+log_info "5 de 10 Configuring project with qmake..."
 "$QT_PATH/bin/qmake" ../2x2coin-wallet.pro \
     -spec android-clang \
     CONFIG+=release \
@@ -152,13 +152,13 @@ log_info "Configuring project with qmake..."
     ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" >> "../$LOG_FILE" 2>&1 || log_error "qmake configuration failed."
 
 # 6. Compile C++
-log_info "Compiling native code (C++)..."
+log_info "6 de 10 Compiling native code (C++)..."
 make -j$(nproc) >> "../$LOG_FILE" 2>&1 || log_error "C++ compilation failed."
 
 # ==============================================================================
 # 7. Prepare Structure for androiddeployqt (Injeção forçada do binário)
 # ==============================================================================
-log_info "Preparing folder structure and injecting native binary..."
+log_info "7 de 10 Preparing folder structure and injecting native binary..."
 
 # Cria explicitamente a árvore esperada pela ferramenta de deployment
 mkdir -p android-build/libs/arm64-v8a
@@ -188,10 +188,12 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
       -dname "CN=Android Debug,O=Android,C=US" >> "$LOG_FILE" 2>&1
 fi
 
+cp debug.keystore /home/yiimp/2x2Coin_android/build-android-arm64-release/android-build/
+
 # ==============================================================================
 # 8. Generate APK using androiddeployqt
 # ==============================================================================
-log_info "Starting APK generation (androiddeployqt)..."
+log_info "8 de 10 Starting APK generation (androiddeployqt)..."
 ANDROID_DEPLOY_QT="$QT_PATH/bin/androiddeployqt"
 if [ ! -f "$ANDROID_DEPLOY_QT" ]; then
     ANDROID_DEPLOY_QT="$(dirname $QT_PATH)/gcc_64/bin/androiddeployqt"
@@ -231,7 +233,7 @@ cd ..
 # ETAPA DE ASSINATURA E ALINHAMENTO DO APK (COM CHECAGEM DE DEPENDÊNCIAS)
 # ==============================================================================
 
-echo "[INFO] Verificando dependências de pós-compilação..."
+echo "[INFO] 9 de 10 Verificando dependências de pós-compilação..."
 
 verificar_e_instalar() {
     local comando=$1
@@ -292,7 +294,7 @@ fi
 # ==============================================================================
 # ETAPA DE CÓPIA DO ARQUIVO PARA A PASTA DE DESTINO ($BUILD_DIR)
 # ==============================================================================
-echo "[INFO] Copiando o arquivo assinado para a pasta de destino..."
+echo "[INFO] 10 de 10Copiando o arquivo assinado para a pasta de destino..."
 
 cp "$APK_FINAL" "$BUILD_DIR/${APK_FINAL}"
 
