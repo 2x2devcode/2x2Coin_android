@@ -62,14 +62,15 @@ else
     log_success "All system dependencies are installed."
 fi
 
-# Path Configurations (Detecta dinamicamente se você está rodando como root ou yiimp)
+# Path Configurations (Corrigido para apontar o SDK/NDK para o /root/)
 if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
     export QT_PATH="${QT_ANDROID_PATH:-/root/Qt/6.5.3/android_arm64_v8a}"
 else
     export QT_PATH="${QT_ANDROID_PATH:-$HOME/Qt/6.5.3/android_arm64_v8a}"
 fi
 
-export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/home/yiimp/android-sdk}"
+# Ajustado: Agora apontando diretamente para o /root/android-sdk
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/root/android-sdk}"
 export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_SDK_ROOT/ndk/25.2.9519653}"
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
 export OPENSSL_ANDROID="${OPENSSL_ANDROID:-/home/yiimp/openssl-android}"
