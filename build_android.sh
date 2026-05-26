@@ -208,19 +208,17 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
-# 1. Garante que a pasta de destino exista
+# 1. Garante que a pasta exista e copia o Manifesto exatamente como você deseja
 mkdir -p android-build
-
-# 2. Executa a cópia exata que você solicitou
-log_info "Copiando manualmente o AndroidManifest.xml para a pasta de build..."
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-# 3. Ajusta o JSON para apontar para a pasta original do projeto. 
-# Isso impede que o androiddeployqt tente copiar o arquivo de "android-build" para "android-build" (o que gerava o erro de cópia idêntica)
-ABS_SRC_MANIFEST_DIR=$(realpath "$PROJECT_ROOT/android")
-sed -i "s|\"android-package-source-directory\": \".*\"|\"android-package-source-directory\": \"$ABS_SRC_MANIFEST_DIR\"|g" "$DEPLOY_JSON"
+# 2. CORREÇÃO DA SINTAXE NO JSON (Remove barras duplas acumuladas)
+# Remove barras invertidas ou normais duplicadas que o qmake possa ter injetado nas variáveis de diretório
+sed -i 's|\/\/*|\/|g' "$DEPLOY_JSON"
+sed -i 's|android-build\/|android-build|g' "$DEPLOY_JSON"
 
-ABS_OUTPUT=$(realpath "android-build")
+# 3. Força o caminho de saída como um ponto absoluto limpo e sem barras no final
+ABS_OUTPUT=$(realpath "android-build" | sed 's|\/$||')
 
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
