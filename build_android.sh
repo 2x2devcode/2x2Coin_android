@@ -217,6 +217,8 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
         >> "../$LOG_FILE" 2>&1
 fi
 
+mv $BUILD_DIR/build-android-arm64-release/android-build/debug.keystore $BUILD_DIR/android-build/debug.keystore
+
 # Validate keystore creation
 if [ -f "$KEYSTORE_NAME" ]; then
 
