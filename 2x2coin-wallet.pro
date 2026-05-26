@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET = 2x2coin-wallet
 
 QT += core gui quick
-CONFIG += c++17 qtquickcompiler
+QT += core gui quick quickcontrols2
 
 VERSION = 2.0.2
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
