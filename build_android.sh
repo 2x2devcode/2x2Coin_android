@@ -149,6 +149,16 @@ else
     log_info "Python not found; ensure required assets exist manually."
 fi
 
+# 4. Configure Build Directory
+BUILD_DIR="build-android-arm64-release"
+
+log_info "4 of 10 Cleaning previous build directory..."
+rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
+mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR/android-build"
+
+cd "$BUILD_DIR" || exit 1
+
 # ==============================================================================
 # NOVA ETAPA: Validação Crítica do AndroidManifest.xml antes de criar pastas
 # ==============================================================================
@@ -157,6 +167,7 @@ log_info "Verificando integridade do Manifesto Android..."
 
 if [ -f "$EXPECTED_MANIFEST" ]; then
     log_success "AndroidManifest.xml ENCONTRADO em: $EXPECTED_MANIFEST"
+    cp $EXPECTED_MANIFEST $BUILD_DIR/android-build/AndroidManifest.xml
 else
     echo -e "${RED}[ERROR]${NC} AndroidManifest.xml NÃO FOI ENCONTRADO!"
     echo "Caminho esperado: $EXPECTED_MANIFEST"
@@ -172,20 +183,6 @@ else
     fi
     exit 1
 fi
-# ==============================================================================
-
-# 4. Configure Build Directory
-BUILD_DIR="build-android-arm64-release"
-
-log_info "4 of 10 Cleaning previous build directory..."
-rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
-mkdir -p "$BUILD_DIR"
-
-# Força a criação da pasta interna de build do Android e injeta o Manifesto correto
-mkdir -p "$BUILD_DIR/android-build"
-cp /root/2x2Coin_android/android/AndroidManifest.xml "$BUILD_DIR/android-build/AndroidManifest.xml"
-
-cd "$BUILD_DIR" || exit 1
 
 # ==============================================================================
 # 5. Run qmake (Corrigido com Injeção Direta de Variáveis de Ambiente)
