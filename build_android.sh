@@ -183,7 +183,7 @@ mkdir -p "$BUILD_DIR"
 
 # Força a criação da pasta interna de build do Android e injeta o Manifesto correto
 mkdir -p "$BUILD_DIR/android-build"
-cp "$EXPECTED_MANIFEST" "$BUILD_DIR/android-build/AndroidManifest.xml"
+cp /root/2x2Coin_android/android/AndroidManifest.xml "$BUILD_DIR/android-build/AndroidManifest.xml"
 
 cd "$BUILD_DIR" || exit 1
 
@@ -275,21 +275,6 @@ DEPLOY_JSON="android-2x2coin-wallet-deployment-settings.json"
 
 if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
-fi
-
-# ------------------------------------------------------------------------------
-# CORREÇÃO FORÇADA: Injeta o manifesto na pasta de build e corrige o JSON capenga
-# ------------------------------------------------------------------------------
-log_info "Forçando alinhamento do AndroidManifest no esqueleto do build..."
-
-# Busca o Manifesto original limpo que está na pasta do seu projeto
-MANIFEST_FONTE="/root/2x2Coin_android/android/AndroidManifest.xml"
-
-if [ -f "$MANIFEST_FONTE" ]; then
-    cp /root/2x2Coin_android/android/AndroidManifest.xml $BUILD_DIR/android-build/AndroidManifest.xml
-    log_success "Manifesto copiado com sucesso para android-build/"
-else
-    log_error "Manifesto original nao encontrado em $MANIFEST_FONTE"
 fi
 
 # Corrige a linha do JSON para apontar para a pasta atual absoluta do build
