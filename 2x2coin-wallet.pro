@@ -68,8 +68,8 @@ INCLUDEPATH += \
 android {
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
     CONFIG += android_install
-    QMAKE_CXXFLAGS += -Wno-deprecated-declarations
     DEFINES += OPENSSL_SUPPRESS_DEPRECATED
+    QMAKE_CXXFLAGS += -Wno-deprecated-declarations -Wno-unused-parameter -Wno-unused-lambda-capture
     
   # SDK — use 34 para Android 15; sobrescreva com ANDROID_TARGET_SDK=34 no ambiente
     ANDROID_MIN_SDK_VERSION = 23
