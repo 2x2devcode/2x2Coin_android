@@ -167,7 +167,6 @@ log_info "Verificando integridade do Manifesto Android..."
 
 if [ -f "$EXPECTED_MANIFEST" ]; then
     log_success "AndroidManifest.xml ENCONTRADO em: $EXPECTED_MANIFEST"
-    cp $EXPECTED_MANIFEST /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 else
     echo -e "${RED}[ERROR]${NC} AndroidManifest.xml NÃO FOI ENCONTRADO!"
     echo "Caminho esperado: $EXPECTED_MANIFEST"
@@ -265,7 +264,7 @@ log_info "8 of 10 Starting APK generation..."
 if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
     ANDROID_DEPLOY_QT="/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 else
-    ANDROID_DEPLOY_QT="/home/yiimp/Qt/6.5.3/gcc_64/bin/androiddeployqt"
+    ANDROID_DEPLOY_QT="/home/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 fi
 
 DEPLOY_JSON="android-2x2coin-wallet-deployment-settings.json"
