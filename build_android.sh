@@ -147,9 +147,6 @@ log_info "4 of 10 Cleaning previous build directory..."
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
 
 mkdir -p "$BUILD_DIR"
-mkdir -p "$BUILD_DIR/android-build/src/main"
-
-cp android/AndroidManifest.xml "$BUILD_DIR/android-build/src/main/"
 
 cd "$BUILD_DIR" || exit 1
 
