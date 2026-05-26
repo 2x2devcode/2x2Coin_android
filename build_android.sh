@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Forçar o Qt a rodar em modo terminal (sem exigir interface gráfica/Display)
+export QT_QPA_PLATFORM=minimal
+
 # Terminal Colors
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -41,7 +44,8 @@ fi
 # 2. Install Dependencies if necessary
 log_info "2 of 10 Checking and installing system dependencies..."
 
-DEPS="build-essential cmake git curl wget zip unzip openjdk-17-jdk libssl-dev python3-pip"
+# Inclusão da libxcb-cursor0 para evitar quebras de plataforma do Qt6
+DEPS="build-essential cmake git curl wget zip unzip openjdk-17-jdk libssl-dev python3-pip libxcb-cursor0"
 MISSING_DEPS=""
 
 for dep in $DEPS; do
@@ -58,12 +62,17 @@ else
     log_success "All system dependencies are installed."
 fi
 
-# Path Configurations
-export QT_PATH="${QT_ANDROID_PATH:-$HOME/Qt/6.5.3/android_arm64_v8a}"
-export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
+# Path Configurations (Detecta dinamicamente se você está rodando como root ou yiimp)
+if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
+    export QT_PATH="${QT_ANDROID_PATH:-/root/Qt/6.5.3/android_arm64_v8a}"
+else
+    export QT_PATH="${QT_ANDROID_PATH:-$HOME/Qt/6.5.3/android_arm64_v8a}"
+fi
+
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/home/yiimp/android-sdk}"
 export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_SDK_ROOT/ndk/25.2.9519653}"
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
-export OPENSSL_ANDROID="${OPENSSL_ANDROID:-$HOME/openssl-android}"
+export OPENSSL_ANDROID="${OPENSSL_ANDROID:-/home/yiimp/openssl-android}"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 ALT_OPENSSL="$PROJECT_ROOT/third_party/android_openssl"
@@ -143,11 +152,8 @@ fi
 BUILD_DIR="build-android-arm64-release"
 
 log_info "4 of 10 Cleaning previous build directory..."
-
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
-
 mkdir -p "$BUILD_DIR"
-
 cd "$BUILD_DIR" || exit 1
 
 # 5. Run qmake
@@ -164,42 +170,31 @@ log_info "5 of 10 Configuring project with qmake..."
 
 # 6. Compile C++
 log_info "6 of 10 Compiling native code (C++)..."
-
 make -j$(nproc) >> "../$LOG_FILE" 2>&1 || log_error "C++ compilation failed."
 
-# 7. Prepare androiddeployqt structure
+# 7. Prepare androiddeployqt structure (Ajustado para proteger o esqueleto Java do Qt)
 log_info "7 of 10 Preparing deployment structure..."
 
+# Garante que o diretório gerado pelo qmake receba o binário sem sobrescrever a árvore
 mkdir -p android-build/libs/arm64-v8a
 
 SO_ORIGINAL=$(find . -maxdepth 3 -name "lib2x2coin-wallet*.so" | grep -v "android-build" | head -n 1)
 
 if [ -n "$SO_ORIGINAL" ] && [ -f "$SO_ORIGINAL" ]; then
-
     log_info "Native binary located at: $SO_ORIGINAL"
-
     cp "$SO_ORIGINAL" android-build/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so
-
     log_success "Binary successfully positioned for androiddeployqt."
-
 else
     log_error "Native binary was not generated."
 fi
 
 KEYSTORE_NAME="android-build/debug.keystore"
 
-if [ -z "$BUILD_DIR" ]; then
-    log_error "BUILD_DIR is empty"
-fi
-
 log_info "Expected keystore path: $KEYSTORE_NAME"
 
 # Check if keystore exists
 if [ ! -f "$KEYSTORE_NAME" ]; then
-
     log_info "Debug keystore not found. Creating..."
-
-    # Create directory if necessary
     mkdir -p "$(dirname "$KEYSTORE_NAME")"
 
     keytool -genkeypair -v \
@@ -216,41 +211,21 @@ fi
 
 # Validate keystore creation
 if [ -f "$KEYSTORE_NAME" ]; then
-
     REAL_PATH=$(realpath "$KEYSTORE_NAME")
-
-    log_info "Keystore successfully found:"
-    log_info "$REAL_PATH"
-
-    echo ""
-    echo "========================================"
-    echo "DEBUG KEYSTORE LOCATION:"
-    echo "$REAL_PATH"
-    echo "========================================"
-
+    log_info "Keystore successfully found: $REAL_PATH"
 else
-
     log_error "Keystore file was not found after creation attempt."
-
-    echo ""
-    echo "Searched path:"
-    echo "$KEYSTORE_NAME"
-
-    echo ""
-    echo "Searching for existing debug.keystore files..."
-
-    find "$BUILD_DIR" -name "debug.keystore" 2>/dev/null
-
     exit 1
 fi
 
 # 8. Generate APK
 log_info "8 of 10 Starting APK generation..."
 
-ANDROID_DEPLOY_QT="$QT_PATH/bin/androiddeployqt"
-
-if [ ! -f "$ANDROID_DEPLOY_QT" ]; then
-    ANDROID_DEPLOY_QT="$(dirname "$QT_PATH")/gcc_64/bin/androiddeployqt"
+# Correção definitiva do caminho do empacotador (Sempre na pasta host gcc_64)
+if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
+    ANDROID_DEPLOY_QT="/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
+else
+    ANDROID_DEPLOY_QT="/home/yiimp/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 fi
 
 DEPLOY_JSON="android-2x2coin-wallet-deployment-settings.json"
@@ -259,6 +234,7 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
+log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output android-build \
@@ -273,11 +249,8 @@ log_success "Build completed successfully!"
 APK_PATH=$(find android-build -name "*.apk" | grep release | head -n 1)
 
 if [ -n "$APK_PATH" ]; then
-
     cp "$APK_PATH" ../2x2coin-wallet-release.apk
-
     log_info "APK copied to root: 2x2coin-wallet-release.apk"
-
 else
     log_error "APK generated but not located!"
 fi
@@ -288,24 +261,12 @@ cd ..
 echo "[INFO] 9 of 10 Checking signing dependencies..."
 
 check_and_install() {
-
     local command_name=$1
     local package_name=$2
 
     if ! command -v "$command_name" &> /dev/null; then
-
-        echo "[WARNING] Tool '$command_name' was not found."
-        echo "[INFO] Installing package '$package_name'..."
-
-        sudo apt-get update -y
-        sudo apt-get install -y "$package_name"
-
-        if ! command -v "$command_name" &> /dev/null; then
-            echo "[ERROR] Failed to install '$package_name'."
-            exit 1
-        fi
-
-        echo "[SUCCESS] '$command_name' installed successfully!"
+        echo "[WARNING] Tool '$command_name' was not found. Installing '$package_name'..."
+        sudo apt-get update -y && sudo apt-get install -y "$package_name"
     fi
 }
 
@@ -313,17 +274,13 @@ check_and_install "keytool" "default-jdk-headless"
 check_and_install "zipalign" "zipalign"
 check_and_install "apksigner" "apksigner"
 
-echo "[INFO] All signing dependencies are ready."
-
 TARGET_NAME="2x2coin-wallet"
 APK_RAW="${TARGET_NAME}-release.apk"
 APK_FINAL="${TARGET_NAME}.apk"
-
 KEYSTORE_NAME="$BUILD_DIR/android-build/debug.keystore"
 
 if [ ! -f "$APK_RAW" ]; then
     APK_RAW=$(ls *-unsigned.apk 2>/dev/null | head -n 1)
-
     if [ -z "$APK_RAW" ]; then
         APK_RAW=$(ls *release.apk 2>/dev/null | head -n 1)
     fi
@@ -335,9 +292,7 @@ if [ -z "$APK_RAW" ] || [ ! -f "$APK_RAW" ]; then
 fi
 
 echo "[INFO] Applying zipalign..."
-
 rm -f "$APK_FINAL"
-
 zipalign -v 4 "$APK_RAW" "$APK_FINAL"
 
 if [ $? -ne 0 ]; then
@@ -345,12 +300,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "[INFO] Signing APK..."
-
-apksigner sign \
-    --ks "$KEYSTORE_NAME" \
-    --ks-pass pass:android \
-    "$APK_FINAL"
+echo "[INFO] Signing APK with apksigner..."
+apksigner sign --ks "$KEYSTORE_NAME" --ks-pass pass:android "$APK_FINAL"
 
 if [ $? -ne 0 ]; then
     echo "[ERROR] APK signing failed."
@@ -359,19 +310,15 @@ fi
 
 # 10. Copy Final APK
 echo "[INFO] 10 of 10 Copying signed APK..."
-
 cp "$APK_FINAL" "$BUILD_DIR/${APK_FINAL}"
 
 if [ $? -eq 0 ]; then
-
     echo "=========================================================================="
     echo "[SUCCESS] Process completed successfully!"
     echo "[ROOT LOCATION]  $(pwd)/${APK_FINAL}"
     echo "[BUILD COPY]     $(pwd)/$BUILD_DIR/${APK_FINAL}"
     echo "=========================================================================="
-
 else
-
     echo "[ERROR] Failed to copy APK to $BUILD_DIR"
     exit 1
 fi
