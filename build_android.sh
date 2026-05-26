@@ -167,7 +167,7 @@ log_info "Verificando integridade do Manifesto Android..."
 
 if [ -f "$EXPECTED_MANIFEST" ]; then
     log_success "AndroidManifest.xml ENCONTRADO em: $EXPECTED_MANIFEST"
-    log_success cp $EXPECTED_MANIFEST $BUILD_DIR/android-build/AndroidManifest.xml"
+    log_success "cp $EXPECTED_MANIFEST $BUILD_DIR/android-build/AndroidManifest.xml"
     cp $EXPECTED_MANIFEST $BUILD_DIR/android-build/AndroidManifest.xml
 else
     echo -e "${RED}[ERROR]${NC} AndroidManifest.xml NÃO FOI ENCONTRADO!"
