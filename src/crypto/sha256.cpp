@@ -5,7 +5,7 @@
 #include "hmac_sha512.h"
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#include <openssl/pkcs5.h>
+// OpenSSL 3: PKCS5_PBKDF2_HMAC esta em evp.h (pkcs5.h removido do pacote KDAB ssl_3)
 
 namespace Coin2x2 {
 namespace Crypto {
