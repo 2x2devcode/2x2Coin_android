@@ -245,7 +245,9 @@ else
     exit 1
 fi
 
-# 8. Generate APK
+# ==============================================================================
+# 8. Generate APK (Trecho Corrigido para Android 15 / API 35)
+# ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
 # Correção definitiva do caminho do empacotador (Sempre na pasta host gcc_64)
@@ -265,13 +267,14 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output android-build \
-    --android-platform android-34 \
+    --android-platform android-35 \
     --jdk "$JAVA_HOME" \
     --gradle \
     --release \
     >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt failed."
 
 log_success "Build completed successfully!"
+# ==============================================================================
 
 APK_PATH=$(find android-build -name "*.apk" | grep release | head -n 1)
 
