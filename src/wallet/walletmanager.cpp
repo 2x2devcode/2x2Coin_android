@@ -373,8 +373,10 @@ QString WalletManager::exportPrivateKey(const QString& address, const QString& p
     for (const auto& rec : m_addresses) {
         if (rec.address == address) {
             QByteArray privkey = m_hdWallet->derivePrivateKey(rec.index, rec.isChange);
-            return Base58::privateKeyToWIF(privkey, true,
-                ChainParams::instance().secretKeyPrefix());
+            const QString wif = Base58::privateKeyToWIF(
+                privkey, true, ChainParams::instance().secretKeyPrefix());
+            privkey.fill('\0');
+            return wif;
         }
     }
     return QString();
