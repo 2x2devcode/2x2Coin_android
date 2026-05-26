@@ -180,6 +180,11 @@ BUILD_DIR="build-android-arm64-release"
 log_info "4 of 10 Cleaning previous build directory..."
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
 mkdir -p "$BUILD_DIR"
+
+# Força a criação da pasta interna de build do Android e injeta o Manifesto correto
+mkdir -p "$BUILD_DIR/android-build"
+cp "$EXPECTED_MANIFEST" "$BUILD_DIR/android-build/AndroidManifest.xml"
+
 cd "$BUILD_DIR" || exit 1
 
 # ==============================================================================
