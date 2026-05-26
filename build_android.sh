@@ -192,16 +192,20 @@ cd "$BUILD_DIR" || exit 1
 # ==============================================================================
 log_info "5 of 10 Configuring project with qmake..."
 
-# Forçamos as variáveis diretamente antes da chamada do binário
-ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+# Obtém o caminho absoluto e limpo da pasta OPENSSL e do projeto
+ABS_OPENSSL=$(realpath "$OPENSSL_ANDROID")
+ABS_SDK=$(realpath "$ANDROID_SDK_ROOT")
+ABS_NDK=$(realpath "$ANDROID_NDK_ROOT")
+
+ANDROID_NDK_ROOT="$ABS_NDK" \
+ANDROID_SDK_ROOT="$ABS_SDK" \
 "$QT_PATH/bin/qmake" ../2x2coin-wallet.pro \
     -spec "$QT_PATH/mkspecs/android-clang" \
     CONFIG+=release \
     ANDROID_ABIS=arm64-v8a \
-    OPENSSL_ANDROID="$OPENSSL_ANDROID" \
-    ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
-    ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+    OPENSSL_ANDROID="$ABS_OPENSSL" \
+    ANDROID_SDK_ROOT="$ABS_SDK" \
+    ANDROID_NDK_ROOT="$ABS_NDK" \
     DEFINES+=OPENSSL_SUPPRESS_DEPRECATED \
     QMAKE_CXXFLAGS+=-Wno-deprecated-declarations \
     >> "../$LOG_FILE" 2>&1 || log_error "qmake configuration failed."
@@ -261,7 +265,6 @@ fi
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
-# Correção definitiva do caminho do empacotador (Sempre na pasta host gcc_64)
 if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
     ANDROID_DEPLOY_QT="/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 else
@@ -274,10 +277,13 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
+# Usamos o realpath para garantir que o diretório termine sem barras sobressalentes
+ABS_OUTPUT=$(realpath "android-build")
+
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
-    --output "$(pwd)/android-build" \
+    --output "$ABS_OUTPUT" \
     --android-platform android-35 \
     --jdk "$JAVA_HOME" \
     --gradle \
