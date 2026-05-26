@@ -181,11 +181,14 @@ rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
-# 5. Run qmake
+# ==============================================================================
+# 5. Run qmake (Corrigido para encontrar o mkspecs do Android)
+# ==============================================================================
 log_info "5 of 10 Configuring project with qmake..."
 
+# Passamos o caminho absoluto para o mkspecs do kit Android usando o $QT_PATH
 "$QT_PATH/bin/qmake" ../2x2coin-wallet.pro \
-    -spec android-clang \
+    -spec "$QT_PATH/mkspecs/android-clang" \
     CONFIG+=release \
     ANDROID_ABIS=arm64-v8a \
     OPENSSL_ANDROID="$OPENSSL_ANDROID" \
