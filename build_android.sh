@@ -62,12 +62,57 @@ export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
 export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_SDK_ROOT/ndk/25.2.9519653}"
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
 export OPENSSL_ANDROID="${OPENSSL_ANDROID:-$HOME/openssl-android}"
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+ALT_OPENSSL="$PROJECT_ROOT/third_party/android_openssl"
 
-# 3. Ensure OpenSSL for Android
-if [ ! -d "$OPENSSL_ANDROID" ]; then
-    log_info "Downloading OpenSSL for Android..."
-    git clone https://github.com/KDAB/android_openssl.git "$OPENSSL_ANDROID" >> "$LOG_FILE" 2>&1
+# Resolve OpenSSL path (KDAB layout: ssl_3/arm64-v8a/libcrypto_3.so)
+resolve_openssl_root() {
+    local root="$1"
+    [ -f "$root/ssl_3/arm64-v8a/libcrypto_3.so" ] && echo "$root" && return 0
+    [ -f "$root/ssl_1.1/arm64-v8a/libcrypto_1_1.so" ] && echo "$root" && return 0
+    [ -f "$root/arm64-v8a/libcrypto.so" ] && echo "$root" && return 0
+    return 1
+}
+
+# 3. Ensure OpenSSL for Android (KDAB prebuilt)
+if ! resolve_openssl_root "$OPENSSL_ANDROID" >/dev/null 2>&1; then
+    if [ -d "$OPENSSL_ANDROID" ]; then
+        log_info "Pasta $OPENSSL_ANDROID existe mas sem libs — re-clonando KDAB android_openssl..."
+        rm -rf "$OPENSSL_ANDROID"
+    fi
+    log_info "Cloning KDAB android_openssl into $OPENSSL_ANDROID ..."
+    git clone --depth 1 https://github.com/KDAB/android_openssl.git "$OPENSSL_ANDROID" >> "$LOG_FILE" 2>&1 \
+        || log_error "git clone android_openssl failed"
 fi
+
+if ! resolve_openssl_root "$OPENSSL_ANDROID" >/dev/null 2>&1; then
+    log_info "Trying project-local third_party/android_openssl ..."
+    if [ ! -d "$ALT_OPENSSL" ]; then
+        mkdir -p "$(dirname "$ALT_OPENSSL")"
+        git clone --depth 1 https://github.com/KDAB/android_openssl.git "$ALT_OPENSSL" >> "$LOG_FILE" 2>&1 \
+            || log_error "git clone into third_party failed"
+    fi
+    if resolve_openssl_root "$ALT_OPENSSL" >/dev/null 2>&1; then
+        OPENSSL_ANDROID="$ALT_OPENSSL"
+        export OPENSSL_ANDROID
+    fi
+fi
+
+if ! resolve_openssl_root "$OPENSSL_ANDROID" >/dev/null 2>&1; then
+    log_error "OpenSSL libs missing under OPENSSL_ANDROID=$OPENSSL_ANDROID \
+Expected: ssl_3/arm64-v8a/libcrypto_3.so (run: ls -la \$OPENSSL_ANDROID/ssl_3/arm64-v8a/)"
+fi
+
+OPENSSL_ROOT_RESOLVED="$(resolve_openssl_root "$OPENSSL_ANDROID")"
+if [ -f "$OPENSSL_ROOT_RESOLVED/ssl_3/arm64-v8a/libcrypto_3.so" ]; then
+    OPENSSL_ARCH_DIR="$OPENSSL_ROOT_RESOLVED/ssl_3/arm64-v8a"
+elif [ -f "$OPENSSL_ROOT_RESOLVED/ssl_1.1/arm64-v8a/libcrypto_1_1.so" ]; then
+    OPENSSL_ARCH_DIR="$OPENSSL_ROOT_RESOLVED/ssl_1.1/arm64-v8a"
+else
+    OPENSSL_ARCH_DIR="$OPENSSL_ROOT_RESOLVED/arm64-v8a"
+fi
+log_success "OpenSSL OK: $OPENSSL_ARCH_DIR"
+export OPENSSL_ANDROID
 
 # 3b. Generate placeholder image assets (logo, splash, launcher icon)
 log_info "Generating image assets..."
@@ -94,6 +139,7 @@ log_info "Configuring project with qmake..."
     -spec android-clang \
     CONFIG+=release \
     ANDROID_ABIS=arm64-v8a \
+    OPENSSL_ANDROID="$OPENSSL_ANDROID" \
     ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
     ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" >> "../$LOG_FILE" 2>&1 || log_error "qmake configuration failed."
 
