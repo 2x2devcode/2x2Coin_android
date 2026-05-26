@@ -208,17 +208,11 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
-# 1. Garante que a pasta exista e copia o Manifesto exatamente como você deseja
+# Garante a existência da pasta e injeta o manifesto atualizado com o ID do pacote
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-# 2. CORREÇÃO DA SINTAXE NO JSON (Remove barras duplas acumuladas)
-# Remove barras invertidas ou normais duplicadas que o qmake possa ter injetado nas variáveis de diretório
-sed -i 's|\/\/*|\/|g' "$DEPLOY_JSON"
-sed -i 's|android-build\/|android-build|g' "$DEPLOY_JSON"
-
-# 3. Força o caminho de saída como um ponto absoluto limpo e sem barras no final
-ABS_OUTPUT=$(realpath "android-build" | sed 's|\/$||')
+ABS_OUTPUT=$(realpath "android-build")
 
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
