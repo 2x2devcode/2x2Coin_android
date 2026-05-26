@@ -189,7 +189,7 @@ else
     log_error "Native binary was not generated."
 fi
 
-KEYSTORE_NAME="$BUILD_DIR/android-build/debug.keystore"
+KEYSTORE_NAME="android-build/debug.keystore"
 
 if [ -z "$BUILD_DIR" ]; then
     log_error "BUILD_DIR is empty"
@@ -216,8 +216,6 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
         -dname "CN=Android Debug,O=Android,C=US" \
         >> "../$LOG_FILE" 2>&1
 fi
-
-mv $BUILD_DIR/build-android-arm64-release/android-build/debug.keystore $BUILD_DIR/android-build/debug.keystore
 
 # Validate keystore creation
 if [ -f "$KEYSTORE_NAME" ]; then
