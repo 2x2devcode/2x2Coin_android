@@ -16,6 +16,7 @@
 #include <QTimer>
 
 #include "ui/applicationcontroller.h"
+#include "ui/walletcontroller.h"
 #include "wallet/walletmanager.h"
 #include "network/networkmanager.h"
 #include "core/chainparams.h"
@@ -72,10 +73,18 @@ int main(int argc, char *argv[])
     Coin2x2::ApplicationController controller;
     Coin2x2::ApplicationController::setInstance(&controller);
     Coin2x2::ApplicationController::registerQmlTypes();
- 
+
+    Coin2x2::WalletController walletController;
+    Coin2x2::WalletController::setInstance(&walletController);
+    Coin2x2::WalletController::registerQmlTypes();
+    walletController.bindManagers(
+        &Coin2x2::WalletManager::instance(),
+        &Coin2x2::NetworkManager::instance());
+
     QQmlApplicationEngine engine;
 
     controller.initialize(&engine);
+    engine.rootContext()->setContextProperty("walletCtrl", &walletController);
 
     // Carregar QML principal
     const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
