@@ -1,7 +1,5 @@
 ######################################################################
 # 2X2Coin Android Qt Wallet — Qt 6 + arm64-v8a + OpenSSL
-# Core: https://github.com/coinsdevcode/2x2Coin
-# UI:   https://github.com/2x2devcode/2x2Coin_android
 ######################################################################
 
 QT += core gui qml quick quickcontrols2 network svg
@@ -78,42 +76,78 @@ android {
     } else {
         ANDROID_TARGET_SDK_VERSION = $$ANDROID_TARGET_SDK
     }
-
     ANDROID_ABIS = arm64-v8a
     
-  # OpenSSL pré-compilado para NDK (KDAB android_openssl ou build manual)
+  # Raiz: env OPENSSL_ANDROID, variável qmake, ou pastas padrão
     OPENSSL_ROOT = $$(OPENSSL_ANDROID)
+    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $$OPENSSL_ANDROID
     isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $$(HOME)/openssl-android
+    isEmpty(OPENSSL_ROOT): OPENSSL_ROOT = $$PWD/third_party/android_openssl
 
-  # Suporta layout KDAB: $OPENSSL_ANDROID/arm64-v8a/{lib,include}
     ANDROID_ABI = arm64-v8a
-    OPENSSL_ARCH_PATH = $$OPENSSL_ROOT/$$ANDROID_ABI
+    OPENSSL_ARCH_PATH =
+    OPENSSL_CRYPTO_SO =
+    OPENSSL_SSL_SO =
+    OPENSSL_CRYPTO_LIB =
+    OPENSSL_SSL_LIB =
 
-    !exists($$OPENSSL_ARCH_PATH/libcrypto.so) {
-        OPENSSL_ARCH_PATH = $$OPENSSL_ROOT/ssl_$$ANDROID_ABI
+    # 1) KDAB / Qt 6.5+ — ssl_3/arm64-v8a/libcrypto_3.so
+    kdab_ssl3 = $$OPENSSL_ROOT/ssl_3/$$ANDROID_ABI
+    exists($$kdab_ssl3/libcrypto_3.so) {
+        OPENSSL_ARCH_PATH = $$kdab_ssl3
+        OPENSSL_CRYPTO_SO = $$OPENSSL_ARCH_PATH/libcrypto_3.so
+        OPENSSL_SSL_SO = $$OPENSSL_ARCH_PATH/libssl_3.so
+        OPENSSL_CRYPTO_LIB = $$OPENSSL_ARCH_PATH/libcrypto.a
+        OPENSSL_SSL_LIB = $$OPENSSL_ARCH_PATH/libssl.a
     }
 
-    exists($$OPENSSL_ARCH_PATH/libcrypto.so) {
-        message("OpenSSL Android: $$OPENSSL_ARCH_PATH")
-        DEFINES += HAVE_OPENSSL
+  # 2) KDAB legado — ssl_1.1/...
+    isEmpty(OPENSSL_ARCH_PATH) {
+        kdab_ssl11 = $$OPENSSL_ROOT/ssl_1.1/$$ANDROID_ABI
+        exists($$kdab_ssl11/libcrypto_1_1.so) {
+            OPENSSL_ARCH_PATH = $$kdab_ssl11
+            OPENSSL_CRYPTO_SO = $$OPENSSL_ARCH_PATH/libcrypto_1_1.so
+            OPENSSL_SSL_SO = $$OPENSSL_ARCH_PATH/libssl_1_1.so
+            OPENSSL_CRYPTO_LIB = $$OPENSSL_ARCH_PATH/libcrypto.a
+            OPENSSL_SSL_LIB = $$OPENSSL_ARCH_PATH/libssl.a
+        }
+    }
 
-         ANDROID_EXTRA_LIBS += \
-            $$OPENSSL_ARCH_PATH/libcrypto.so \
-            $$OPENSSL_ARCH_PATH/libssl.so
+    # 3) Layout manual: $ROOT/arm64-v8a/libcrypto.so
+    isEmpty(OPENSSL_ARCH_PATH) {
+        manual = $$OPENSSL_ROOT/$$ANDROID_ABI
+        exists($$manual/libcrypto.so) {
+            OPENSSL_ARCH_PATH = $$manual
+            OPENSSL_CRYPTO_SO = $$OPENSSL_ARCH_PATH/libcrypto.so
+            OPENSSL_SSL_SO = $$OPENSSL_ARCH_PATH/libssl.so
+            OPENSSL_CRYPTO_LIB = $$OPENSSL_ARCH_PATH/libcrypto.a
+            OPENSSL_SSL_LIB = $$OPENSSL_ARCH_PATH/libssl.a
+            isEmpty(OPENSSL_CRYPTO_LIB): OPENSSL_CRYPTO_LIB = -lcrypto
+            isEmpty(OPENSSL_SSL_LIB): OPENSSL_SSL_LIB = -lssl
+        }
+    }
+
+    !isEmpty(OPENSSL_ARCH_PATH) {
+        message("OpenSSL root: $$OPENSSL_ROOT")
+        message("OpenSSL arch: $$OPENSSL_ARCH_PATH")
+
+        DEFINES += HAVE_OPENSSL
+        ANDROID_EXTRA_LIBS += $$OPENSSL_CRYPTO_SO $$OPENSSL_SSL_SO
 
         INCLUDEPATH += $$OPENSSL_ARCH_PATH/include
         DEPENDPATH += $$OPENSSL_ARCH_PATH/include
-        LIBS += -L$$OPENSSL_ARCH_PATH -lssl -lcrypto
         QMAKE_CXXFLAGS += -I$$OPENSSL_ARCH_PATH/include
-    } else {
-        error("OpenSSL para Android nao encontrado em $$OPENSSL_ARCH_PATH. \
-Defina OPENSSL_ANDROID (ex.: export OPENSSL_ANDROID=$$HOME/openssl-android) \
-e garanta libcrypto.so e libssl.so em arm64-v8a/.")
-    }
 
-  # Evita crash na inicializacao por .so ausente no APK
-    android:contains(ANDROID_EXTRA_LIBS, libcrypto.so) {
-        message("ANDROID_EXTRA_LIBS: $$ANDROID_EXTRA_LIBS")
+        exists($$OPENSSL_ARCH_PATH/libcrypto.a) {
+            LIBS += $$OPENSSL_ARCH_PATH/libcrypto.a $$OPENSSL_ARCH_PATH/libssl.a
+        } else {
+            LIBS += -L$$OPENSSL_ARCH_PATH -lcrypto -lssl
+        }
+    } else {
+        error("OpenSSL Android nao encontrado. OPENSSL_ROOT=$$OPENSSL_ROOT \
+Clone: git clone https://github.com/KDAB/android_openssl.git $$HOME/openssl-android \
+Depois: export OPENSSL_ANDROID=$$HOME/openssl-android \
+Esperado: $$OPENSSL_ROOT/ssl_3/arm64-v8a/libcrypto_3.so")
     }
 } else {
     DEFINES += HAVE_OPENSSL
