@@ -250,7 +250,7 @@ log_info "8 of 10 Starting APK generation..."
 ANDROID_DEPLOY_QT="$QT_PATH/bin/androiddeployqt"
 
 if [ ! -f "$ANDROID_DEPLOY_QT" ]; then
-    ANDROID_DEPLOY_QT="$(dirname "$QT_PATH")/gcc_64/bin/androiddeployqt"
+    ANDROID_DEPLOY_QT="$(dirname "$QT_PATH")/android_arm64_v8a/bin/androiddeployqt"
 fi
 
 DEPLOY_JSON="android-2x2coin-wallet-deployment-settings.json"
