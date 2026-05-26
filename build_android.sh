@@ -281,10 +281,9 @@ fi
 # CORREÇÃO FORÇADA: Injeta o manifesto na pasta de build e corrige o JSON capenga
 # ------------------------------------------------------------------------------
 log_info "Forçando alinhamento do AndroidManifest no esqueleto do build..."
-mkdir -p android-build
 
 # Busca o Manifesto original limpo que está na pasta do seu projeto
-MANIFEST_FONTE="$PROJECT_ROOT/android/AndroidManifest.xml"
+MANIFEST_FONTE="/root/2x2Coin_android/android/AndroidManifest.xml"
 
 if [ -f "$MANIFEST_FONTE" ]; then
     cp /root/2x2Coin_android/android/AndroidManifest.xml $BUILD_DIR/android-build/AndroidManifest.xml
