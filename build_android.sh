@@ -118,7 +118,7 @@ log_info "Executing androiddeployqt..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output android-build \
-    --android-platform android-34 \
+    --android-platform android-35 \
     --jdk "$JAVA_HOME" \
     --gradle \
     --release >> "../$LOG_FILE" 2>&1 || log_error "Failed to generate APK with androiddeployqt."
