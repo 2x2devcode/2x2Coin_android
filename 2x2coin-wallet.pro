@@ -2,10 +2,10 @@
 # 2X2Coin Android Qt Wallet — Qt 6 + arm64-v8a + OpenSSL
 ######################################################################
 
-QT += core gui qml quick quickcontrols2 network svg
-
-TARGET = 2x2coin-wallet
 TEMPLATE = app
+TARGET = 2x2coin-wallet
+
+QT += core gui quick
 CONFIG += c++17 qtquickcompiler
 
 VERSION = 2.0.2
@@ -68,6 +68,7 @@ INCLUDEPATH += \
 # -------------------------------------------------------------------
 android {
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+    CONFIG += android_install
     
   # SDK — use 34 para Android 15; sobrescreva com ANDROID_TARGET_SDK=34 no ambiente
     ANDROID_MIN_SDK_VERSION = 23
