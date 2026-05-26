@@ -287,7 +287,7 @@ mkdir -p android-build
 MANIFEST_FONTE="$PROJECT_ROOT/android/AndroidManifest.xml"
 
 if [ -f "$MANIFEST_FONTE" ]; then
-    cp "$MANIFEST_FONTE" android-build/AndroidManifest.xml
+    cp /root/2x2Coin_android/android/AndroidManifest.xml $BUILD_DIR/android-build/AndroidManifest.xml
     log_success "Manifesto copiado com sucesso para android-build/"
 else
     log_error "Manifesto original nao encontrado em $MANIFEST_FONTE"
