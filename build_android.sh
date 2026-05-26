@@ -103,6 +103,11 @@ if ! resolve_openssl_root "$OPENSSL_ANDROID" >/dev/null 2>&1; then
 Expected: ssl_3/arm64-v8a/libcrypto_3.so (run: ls -la \$OPENSSL_ANDROID/ssl_3/arm64-v8a/)"
 fi
 
+if [ ! -f "$OPENSSL_ANDROID/ssl_3/include/openssl/evp.h" ] \
+   && [ ! -f "$OPENSSL_ANDROID/ssl_1.1/include/openssl/evp.h" ]; then
+    log_error "OpenSSL headers missing. Expected: \$OPENSSL_ANDROID/ssl_3/include/openssl/evp.h"
+fi
+
 OPENSSL_ROOT_RESOLVED="$(resolve_openssl_root "$OPENSSL_ANDROID")"
 if [ -f "$OPENSSL_ROOT_RESOLVED/ssl_3/arm64-v8a/libcrypto_3.so" ]; then
     OPENSSL_ARCH_DIR="$OPENSSL_ROOT_RESOLVED/ssl_3/arm64-v8a"
