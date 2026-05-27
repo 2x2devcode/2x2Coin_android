@@ -238,16 +238,24 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
 
 TARGET_GRADLE="android-build/build.gradle"
 if [ -f "$TARGET_GRADLE" ]; then
+    log_info "Injetando dependências do AppCompat e Biometrics no build.gradle..."
+    
+    # Ativa o multidex para unificar as classes do Qt e as suas
     if ! grep -q "multiDexEnabled" "$TARGET_GRADLE"; then
         sed -i '/defaultConfig {/a \        multiDexEnabled true' "$TARGET_GRADLE"
-        log_info "Multidex injetado para unificar classes.dex e classes2.dex."
-        
-        # Compila novamente apenas o empacotamento final com a regra ativa
-        cd android-build
-        ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1
-        cp build/outputs/apk/release/android-build-release-unsigned.apk ../2x2coin-wallet.apk
-        cd ..
     fi
+
+    # Injeta as bibliotecas do AndroidX necessárias para o seu manifesto e helpers
+    sed -i '/dependencies {/a \    implementation "androidx.appcompat:appcompat:1.6.1"\n    implementation "androidx.biometric:biometric:1.1.0"' "$TARGET_GRADLE"
+
+    # Força o Gradle a compilar o APK final já com as novas dependências inclusas
+    log_info "Executando compilação final do Gradle..."
+    cd android-build
+    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Final gradle compilation failed."
+    
+    # Copia o APK gerado para a raiz do seu projeto
+    cp build/outputs/apk/release/android-build-release-unsigned.apk ../2x2coin-wallet.apk
+    cd ..
 fi
 
 log_success "Build completed successfully!"
