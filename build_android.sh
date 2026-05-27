@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Final - Injeção Nativa de Libs e AndroidX)
+# 8. Generate APK (Versão Monolítica Final - Estrutura Estrita de ABIs)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -237,10 +237,19 @@ log_info "Executando androiddeployqt estrutural..."
 # Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res"
-mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# Copiar de forma garantida o binário .so compilado para a pasta local de empacotamento
-cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
+# --- ESTRUTURAÇÃO DA ABI CORRETA PARA AS LIBS NATIVAS ---
+# Criamos uma pasta jniLibs dedicada para não confundir o empacotador do Gradle
+JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
+mkdir -p "$JNILIBS_DIR"
+
+log_warn "Montando ecossistema de bibliotecas binarias arm64-v8a..."
+# Copia todas as libs nativas do Qt 6 para a subpasta correta da arquitetura ABI
+cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$JNILIBS_DIR/" 2>/dev/null
+
+# Copia de forma garantida a lib da carteira compilada para a mesma pasta
+cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
+# --------------------------------------------------------
 
 # Injeção Manual do build.gradle Estruturado de Forma Correta
 log_warn "Sincronizando configuracao estrutural do build.gradle..."
@@ -299,11 +308,8 @@ android {
             res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
             assets.srcDirs = ['src/main/assets']
             
-            // CORREÇÃO CRUCIAL DOS 5MB: Força a inclusão física de todas as libs .so do motor do Qt + a sua
-            jniLibs.srcDirs = [
-                '/root/Qt/6.5.3/android_arm64_v8a/lib',
-                'libs'
-            ]
+            // Aponta para a raiz estruturada contendo a pasta arm64-v8a limpa
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 
@@ -354,12 +360,12 @@ gradle.projectsLoaded {
 EOF
 
 # Tratamento e posicionamento do Manifesto no local correto moderno (src/main/)
-# Adicionado ícone padrão e permissões para garantir visibilidade no Android 15
+# Removido o atributo package="..." redundante para sanar a recomendação do task processReleaseMainManifest
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
