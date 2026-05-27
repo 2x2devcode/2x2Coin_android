@@ -214,7 +214,7 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-ABS_OUTPUT="android-build"
+ABS_OUTPUT="/root/2x2Coin_android/build-android-arm64-release/android-build"
 
 log_info "Executando androiddeployqt com flag no-build para interceptação..."
 "$ANDROID_DEPLOY_QT" \
@@ -236,7 +236,7 @@ if [ ! -d "$ABS_OUTPUT" ] || [ ! -f "$ABS_OUTPUT/gradlew" ]; then
     exit 1
 fi
 
-# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO GERADO ---
+# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO ---
 GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 
 if [ -f "$GENERATED_MANIFEST" ]; then
@@ -244,45 +244,51 @@ if [ -f "$GENERATED_MANIFEST" ]; then
     sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     log_info "Manifesto corrigido com sucesso."
+else
+    log_warn "Aviso: Manifesto nao encontrado em $GENERATED_MANIFEST"
 fi
 
-# --- COMPILAÇÃO MANUAL ---
+# --- COMPILAÇÃO MANUAL VIA GRADLE ---
 log_info "Disparando compilacao final do Gradle..."
 
-# Entra na pasta criada de forma segura
+# Forçamos o redirecionamento para a pasta exata confirmada pelo log
 cd "$ABS_OUTPUT"
-chmod +x gradlew
 
-# Executa o build real
-./gradlew assembleRelease
+# Se o Qt 6.5.3 não gerou o gradlew local, usamos o comando gradle global do sistema
+if [ -f "./gradlew" ]; then
+    chmod +x ./gradlew
+    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1
+else
+    log_info "Usando o Gradle do sistema operacional..."
+    gradle assembleRelease >> "../../$LOG_FILE" 2>&1
+fi
+
 GRADLE_EXIT_CODE=$?
 
-# Volta para a raiz do projeto de forma absoluta
+# Retorna para a raiz do projeto de forma absoluta
 cd /root/2x2Coin_android/
 
-# [TRAVA DE SEGURANÇA 2] Se o gradle falhar, para o script aqui
 if [ $GRADLE_EXIT_CODE -ne 0 ]; then
-    log_error "A compilacao do Gradle falhou."
+    log_error "A compilacao do Gradle falhou. Verifique o arquivo de log."
     exit 1
 fi
 
 # --- LOCALIZAÇÃO E CÓPIA DO APK FINAL ---
-GENERATED_APK="/root/2x2Coin_android/build-android-arm64-release/android-build/build/outputs/apk/android-build-release-unsigned.apk"
-GENERATED_APK_ALT="/root/2x2Coin_android/build-android-arm64-release/android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
+GENERATED_APK="$ABS_OUTPUT/build/outputs/apk/android-build-release-unsigned.apk"
+GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-unsigned.apk"
 
 if [ -f "$GENERATED_APK" ]; then
     cp "$GENERATED_APK" ./2x2coin-wallet.apk
     log_success "APK copiado com sucesso para a raiz do projeto!"
 elif [ -f "$GENERATED_APK_ALT" ]; then
     cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
-    log_success "APK (da subpasta release) copiado com sucesso para a raiz!"
+    log_success "APK copiado da subpasta release para a raiz!"
 else
-    log_error "O Gradle terminou, mas o APK nao foi encontrado em nenhum caminho."
+    log_error "O Gradle compilou com sucesso, mas o arquivo APK nao foi encontrado nos caminhos mapeados."
     exit 1
 fi
 
 log_success "Build completed successfully!"
-
 # 9. APK Signing and Alignment
 echo "[INFO] 9 of 10 Checking signing dependencies..."
 check_and_install() {
