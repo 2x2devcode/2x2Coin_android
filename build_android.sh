@@ -210,27 +210,14 @@ fi
 
 sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34.0.0"|g' "$DEPLOY_JSON"
 
-TARGET_GRADLE="android-build/build.gradle"
-
-if [ -f "$TARGET_GRADLE" ]; then
-    # Injeta 'multiDexEnabled true' dentro do bloco defaultConfig se ele não existir
-    if ! grep -q "multiDexEnabled" "$TARGET_GRADLE"; then
-        sed -i '/defaultConfig {/a \        multiDexEnabled true' "$TARGET_GRADLE"
-        log_info "Multidex habilitado com sucesso no build.gradle gerado."
-    fi
-fi
-
 # Garante a existência da pasta e injeta o manifesto atualizado com o ID do pacote
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
 ABS_OUTPUT=$(realpath "android-build")
-INIT_SCRIPT_PATH=$(realpath "inject.gradle")
 
-log_info "Forçando injeção dinâmica de dependências no Gradle..."
-export GRADLE_OPTS="-Dorg.gradle.initialization.script=$INIT_SCRIPT_PATH"
-
-log_info "Executing tool: $ANDROID_DEPLOY_QT"
+log_info "Executando androiddeployqt com flag no-build para interceptação..."
+# O SEGREDO: --no-build faz o Qt apenas GERAR as pastas e o Manifesto, sem compilar ainda!
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
@@ -238,31 +225,32 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
     --jdk "$JAVA_HOME" \
     --gradle \
     --release \
-    >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt failed."
+    --no-build \
+    >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt generation failed."
 
-unset GRADLE_OPTS
+# --- INTERCEPTAÇÃO DO MANIFESTO GERADO ---
+GENERATED_MANIFEST="android-build/AndroidManifest.xml"
 
-TARGET_GRADLE="android-build/build.gradle"
-if [ -f "$TARGET_GRADLE" ]; then
-    log_info "Injetando dependências do AppCompat e Biometrics no build.gradle..."
+if [ -f "$GENERATED_MANIFEST" ]; then
+    log_info "Manifesto gerado encontrado. Removendo referências ao AppCompat..."
     
-    # Ativa o multidex para unificar as classes do Qt e as suas
-    if ! grep -q "multiDexEnabled" "$TARGET_GRADLE"; then
-        sed -i '/defaultConfig {/a \        multiDexEnabled true' "$TARGET_GRADLE"
-    fi
-
-    # Injeta as bibliotecas do AndroidX necessárias para o seu manifesto e helpers
-    sed -i '/dependencies {/a \    implementation "androidx.appcompat:appcompat:1.6.1"\n    implementation "androidx.biometric:biometric:1.1.0"' "$TARGET_GRADLE"
-
-    # Força o Gradle a compilar o APK final já com as novas dependências inclusas
-    log_info "Executando compilação final do Gradle..."
-    cd android-build
-    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Final gradle compilation failed."
+    # Substitui qualquer menção ao Theme.AppCompat pelo tema nativo NoTitleBar do Android
+    sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+    sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     
-    # Copia o APK gerado para a raiz do seu projeto
-    cp build/outputs/apk/release/android-build-release-unsigned.apk ../2x2coin-wallet.apk
-    cd ..
+    log_info "Manifesto corrigido com sucesso."
+else
+    log_error "Manifesto gerado pelo Qt nao foi encontrado em $GENERATED_MANIFEST"
 fi
+
+# --- COMPILAÇÃO MANUAL FINAL ---
+log_info "Disparando compilação final do Gradle com os recursos corrigidos..."
+cd android-build
+./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Gradle compilation failed."
+
+# Move o APK gerado para a raiz do seu projeto
+cp build/outputs/apk/release/android-build-release-unsigned.apk ../2x2coin-wallet.apk
+cd ..
 
 log_success "Build completed successfully!"
 
