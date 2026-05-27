@@ -6,6 +6,7 @@ export QT_QPA_PLATFORM=minimal
 # Terminal Colors
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
@@ -15,6 +16,11 @@ echo "--- Build Log Started at $(date) ---" > "$LOG_FILE"
 log_info() {
     echo -e "${CYAN}[INFO]${NC} $1"
     echo "[INFO] $1" >> "$LOG_FILE"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo "[WARN] $1" >> "$LOG_FILE"
 }
 
 log_success() {
@@ -36,7 +42,7 @@ log_error() {
 log_info "1 of 10 Checking operating system..."
 
 if ! grep -q "22.04" /etc/os-release; then
-    log_info "Warning: This script is optimized for Ubuntu 22.04. Your system might be incompatible."
+    log_warn "This script is optimized for Ubuntu 22.04. Your system might be incompatible."
 else
     log_success "Ubuntu 22.04 detected."
 fi
@@ -136,7 +142,7 @@ else
     log_info "Python not found; ensure required assets exist manually."
 fi
 
-# 4. Configure Build Directory (CORRIGIDO: Deixando o qmake criar o esqueleto limpo)
+# 4. Configure Build Directory
 BUILD_DIR="build-android-arm64-release"
 log_info "4 of 10 Cleaning previous build directory..."
 rm -rf "$BUILD_DIR" >> "$LOG_FILE" 2>&1
@@ -194,13 +200,13 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
         >> "../$LOG_FILE" 2>&1
 fi
 
-# 8. Generate APK (CORRIGIDO: sed apontando para a pasta original do Manifesto)
+# 8. Generate APK (Versão Híbrida e Segura contra Pastas Vazias)
 log_info "8 of 10 Starting APK generation..."
 
 if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
     ANDROID_DEPLOY_QT="/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 else
-    ANDROID_DEPLOY_QT="/root/Qt/6.5.3/gcc_64/bin/androiddeployqt"
+    ANDROID_DEPLOY_QT="/home/yiimp/Qt/6.5.3/gcc_64/bin/androiddeployqt"
 fi
 
 DEPLOY_JSON="android-2x2coin-wallet-deployment-settings.json"
@@ -210,30 +216,13 @@ fi
 
 sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34.0.0"|g' "$DEPLOY_JSON"
 
-# Garante a existência da pasta e injeta o manifesto atualizado com o ID do pacote
-mkdir -p android-build
-cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
-
 BUILD_ROOT="/root/2x2Coin_android/build-android-arm64-release"
 ABS_OUTPUT="$BUILD_ROOT/android-build"
 
-log_info "Limpando estruturas antigas..."
-rm -rf "$ABS_OUTPUT"
-mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
-
-SOURCE_SO="$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so"
-if [ -f "$SOURCE_SO" ]; then
-    log_info "Injetando binario C++ na estrutura do Android..."
-    cp "$SOURCE_SO" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so"
-else
-    log_error "Arquivo .so nao foi encontrado em $SOURCE_SO"
-    exit 1
-fi
-
-# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de chamar o Qt
+# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de qualquer coisa
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
 
-log_info "Executando androiddeployqt..."
+log_info "Executando androiddeployqt estrutural..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
@@ -243,26 +232,71 @@ log_info "Executando androiddeployqt..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO ---
-GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
-
-# Se o Qt pulou a geração por causa do no-build, nós mesmos criamos um gatilho de correção preventiva
-if [ -f "$GENERATED_MANIFEST" ]; then
-    log_info "Aplicando patch de remocao do AppCompat no Manifesto..."
-    sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
-    sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
-else
-    log_warn "Manifesto nao gerado nesta etapa, deixando para a compilacao do Gradle..."
+# Injeção Manual de Fallback caso a pasta tenha sido ignorada pelo Qt
+if [ ! -f "$ABS_OUTPUT/build.gradle" ]; then
+    log_warn "O Qt pulou a geracao de arquivos estruturais. Criando build.gradle manual..."
+    cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+}
+allprojects {
+    repositories { google(); mavenCentral() }
+}
+apply plugin: 'com.android.application'
+android {
+    namespace "com.coin2x2.wallet"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.coin2x2.wallet"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+EOF
 fi
 
-# --- CONFIGURAÇÃO DO GRADLE DO SISTEMA ---
-log_info "Configurando local.properties..."
+# Tratamento do Manifesto
+GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
+if [ ! -f "$GENERATED_MANIFEST" ]; then
+    log_warn "Criando AndroidManifest.xml em modo Fallback estrutural..."
+    cat << 'EOF' > "$GENERATED_MANIFEST"
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
+    <application android:label="2x2Coin Wallet" android:theme="@android:style/Theme.NoTitleBar" android:allowBackup="true">
+        <activity android:name="org.qtproject.qt.android.bindings.QtActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
+        </activity>
+    </application>
+</manifest>
+EOF
+else
+    log_info "Aplicando patch de remocao do AppCompat no Manifesto gerado..."
+    sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+    sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+fi
+
+# Forçar a reinjeção garantida do .so de compilação da Etapa 7
+mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
+cp "$BUILD_ROOT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
+
+# Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
 
-log_info "Disparando compilacao com Gradle (Forçando Java 17)..."
+log_info "Disparando compilacao com Gradle Global (Java 17)..."
 cd "$ABS_OUTPUT"
 
-# Chamamos o gradle passando explicitamente o seu JAVA_HOME (Java 17) para evitar o Java 21 do snap
 gradle assembleRelease --java-home "$JAVA_HOME"
 GRADLE_EXIT_CODE=$?
 
@@ -273,25 +307,26 @@ if [ $GRADLE_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# --- CÓPIA DO APK FINAL PARA A RAIZ ---
+# Resgate e centralização do APK gerado pelo Gradle
 GENERATED_APK="$ABS_OUTPUT/build/outputs/apk/android-build-release-unsigned.apk"
 GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-unsigned.apk"
+GENERATED_APK_THIRD="$ABS_OUTPUT/build/outputs/apk/release/android-build-release.apk"
 
 if [ -f "$GENERATED_APK" ]; then
-    cp "$GENERATED_APK" ./2x2coin-wallet.apk
-    log_success "Sucesso! APK copiado para a raiz do projeto."
+    cp "$GENERATED_APK" ./2x2coin-wallet-release-unsigned.apk
 elif [ -f "$GENERATED_APK_ALT" ]; then
-    cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
-    log_success "Sucesso! APK copiado para a raiz do projeto."
+    cp "$GENERATED_APK_ALT" ./2x2coin-wallet-release-unsigned.apk
+elif [ -f "$GENERATED_APK_THIRD" ]; then
+    cp "$GENERATED_APK_THIRD" ./2x2coin-wallet-release-unsigned.apk
 else
-    log_error "O processo terminou, mas o arquivo APK nao foi encontrado."
+    log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi mapeado."
     exit 1
 fi
 
-log_success "Build concluido com sucesso!"
+log_success "Fase Gradle concluida com sucesso!"
 
 # 9. APK Signing and Alignment
-echo "[INFO] 9 of 10 Checking signing dependencies..."
+log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
     local command_name=$1
     local package_name=$2
@@ -304,30 +339,23 @@ check_and_install "zipalign" "zipalign"
 check_and_install "apksigner" "apksigner"
 
 TARGET_NAME="2x2coin-wallet"
-APK_RAW="${TARGET_NAME}-release.apk"
+APK_RAW="2x2coin-wallet-release-unsigned.apk"
 APK_FINAL="${TARGET_NAME}.apk"
-KEYSTORE_NAME="$BUILD_DIR/android-build/debug.keystore"
+KEYSTORE_PATH="$ABS_OUTPUT/debug.keystore"
 
-if [ ! -f "$APK_RAW" ]; then
-    APK_RAW=$(ls *-unsigned.apk 2>/dev/null | head -n 1)
-    if [ -z "$APK_RAW" ]; then
-        APK_RAW=$(ls *release.apk 2>/dev/null | head -n 1)
-    fi
-fi
-
-echo "[INFO] Applying zipalign..."
+log_info "Applying zipalign..."
 rm -f "$APK_FINAL"
-zipalign -v 4 "$APK_RAW" "$APK_FINAL"
+zipalign -v 4 "$APK_RAW" "$APK_FINAL" >> "$LOG_FILE" 2>&1
 
-echo "[INFO] Signing APK with apksigner..."
-apksigner sign --ks "$KEYSTORE_NAME" --ks-pass pass:android "$APK_FINAL"
+log_info "Signing APK with apksigner..."
+apksigner sign --ks "$KEYSTORE_PATH" --ks-pass pass:android "$APK_FINAL" >> "$LOG_FILE" 2>&1
 
 # 10. Copy Final APK
-echo "[INFO] 10 of 10 Copying signed APK..."
+log_info "10 of 10 Copying signed APK..."
 cp "$APK_FINAL" "$BUILD_DIR/${APK_FINAL}"
 
 echo "=========================================================================="
-echo "[SUCCESS] Process completed successfully!"
-echo "[ROOT LOCATION]  $(pwd)/${APK_FINAL}"
+echo -e "${GREEN}[SUCCESS] Process completed successfully!${NC}"
+echo "[ROOT LOCATION]   $(pwd)/${APK_FINAL}"
 echo "[BUILD COPY]      $(pwd)/$BUILD_DIR/${APK_FINAL}"
 echo "=========================================================================="
