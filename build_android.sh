@@ -225,6 +225,10 @@ mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
 ABS_OUTPUT=$(realpath "android-build")
+INIT_SCRIPT_PATH=$(realpath "inject.gradle")
+
+log_info "Forçando injeção dinâmica de dependências no Gradle..."
+export GRADLE_OPTS="-Dorg.gradle.initialization.script=$INIT_SCRIPT_PATH"
 
 log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
@@ -235,6 +239,8 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
     --gradle \
     --release \
     >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt failed."
+
+unset GRADLE_OPTS
 
 TARGET_GRADLE="android-build/build.gradle"
 if [ -f "$TARGET_GRADLE" ]; then
