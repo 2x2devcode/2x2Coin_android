@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica - Forçando Injeção de Fontes Qt 6)
+# 8. Generate APK (Versão Monolítica Corrigida - Estrutura e Vinculos Qt 6)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -234,68 +234,121 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria rigorosamente a árvore de diretórios moderna do Android
+# Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res"
 mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# --- O PULO DO GATO: Copiar os fontes Java do Qt para o escopo do projeto ---
-log_info "Injetando vinculos Java nativos do Qt 6 no nucleo do build..."
-cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/src/* "$ABS_OUTPUT/src/main/java/" 2>/dev/null
-cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/res/* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
-
-# Copiar de forma garantida o binário .so compilado para a pasta correta
+# Copiar de forma garantida o binário .so compilado para a pasta correta de empacotamento
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
 
-# Injeção Manual do build.gradle Estrito
+# Injeção Manual do build.gradle Estruturado de Forma Correta
 log_warn "Sincronizando configuracao estrutural do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
-    repositories { google(); mavenCentral() }
-    dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Única função do buildscript: carregar o plugin de compilação do Android
+        classpath 'com.android.tools.build:gradle:8.2.2'
+    }
 }
+
 allprojects {
-    repositories { google(); mavenCentral() }
+    repositories {
+        google()
+        mavenCentral()
+        // Aponta para as dependências locais internas do Qt no servidor
+        maven { url "/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency" }
+    }
 }
+
 apply plugin: 'com.android.application'
+
+// Aqui ficam as dependências do aplicativo que vão entrar no classes.dex
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+
+    // Versão estável e disponível globalmente (Corrige o erro checkReleaseAarMetadata)
+    implementation "androidx.biometric:biometric:1.1.0"
+
+    // Força o Gradle a compilar e embutir os arquivos JAR e AAR do motor do Qt
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
+}
+
 android {
     namespace "com.coin2x2.wallet"
     compileSdk 34
-    defaultConfig {
-        applicationId "com.coin2x2.wallet"
-        minSdk 26
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
+
+    compileSdkVersion 34
+    buildToolsVersion "34.0.0"
+    ndkVersion "25.2.9519653"
+
+    packagingOptions.jniLibs.useLegacyPackaging true
+
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
-            java.srcDirs = ['src/main/java']
-            res.srcDirs = ['src/main/res']
+            
+            // Mapeamento estático e agressivo para as pastas de código-fonte Java do Qt
+            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
+            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
+            res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
+            assets.srcDirs = ['src/main/assets']
             jniLibs.srcDirs = ['libs']
         }
     }
+
+    tasks.withType(JavaCompile) {
+        options.incremental = true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    buildTypes {
-        release {
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+
+    lintOptions {
+        abortOnError false
+    }
+
+    aaptOptions {
+        noCompress 'rcc'
+    }
+
+    defaultConfig {
+        resConfig "en"
+        minSdkVersion 26
+        targetSdkVersion 34
+        ndk.abiFilters = ["arm64-v8a"]
+    }
+}
+
+gradle.projectsLoaded {
+    rootProject.allprojects {
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        repositories {
+            google()
+            mavenCentral()
+        }
+        pluginManager.withPlugin('com.android.application') {
+            dependencies {
+                implementation "androidx.biometric:biometric:1.1.0"
+            }
         }
     }
 }
-dependencies {
-    implementation "androidx.biometric:biometric:1.4.0-rc01"
-    // Incorpora os arquivos JAR vitais do Qt diretamente na esteira de compilação
-    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
-}
 EOF
 
-# Tratamento e posicionamento do Manifesto no local correto (src/main/)
+# Tratamento e posicionamento do Manifesto no local correto moderno (src/main/)
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
