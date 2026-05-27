@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Final - Estrutura Estrita de ABIs)
+# 8. Generate APK (Versão Monolítica Final - Integração Estrita de Metadados Qt)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -237,17 +237,17 @@ log_info "Executando androiddeployqt estrutural..."
 # Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res"
+mkdir -p "$ABS_OUTPUT/src/main/assets"
+
+# Copia as configurações de deployment para os assets (Essencial para o QtActivity localizar as dependências internas)
+cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
 
 # --- ESTRUTURAÇÃO DA ABI CORRETA PARA AS LIBS NATIVAS ---
-# Criamos uma pasta jniLibs dedicada para não confundir o empacotador do Gradle
 JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
 mkdir -p "$JNILIBS_DIR"
 
 log_warn "Montando ecossistema de bibliotecas binarias arm64-v8a..."
-# Copia todas as libs nativas do Qt 6 para a subpasta correta da arquitetura ABI
 cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$JNILIBS_DIR/" 2>/dev/null
-
-# Copia de forma garantida a lib da carteira compilada para a mesma pasta
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
 # --------------------------------------------------------
 
@@ -260,7 +260,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Única função do buildscript: carregar o plugin de compilação do Android
         classpath 'com.android.tools.build:gradle:8.2.2'
     }
 }
@@ -269,21 +268,15 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Aponta para as dependências locais internas do Qt no servidor
         maven { url "/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency" }
     }
 }
 
 apply plugin: 'com.android.application'
 
-// Aqui ficam as dependências do aplicativo que vão entrar no classes.dex
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
-
-    // Versão estável e disponível globalmente (Corrige o erro checkReleaseAarMetadata)
     implementation "androidx.biometric:biometric:1.1.0"
-
-    // Força o Gradle a compilar e embutir os arquivos JAR e AAR do motor do Qt
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
 }
@@ -301,14 +294,10 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
-            
-            // Mapeamento estático e agressivo para as pastas de código-fonte Java do Qt
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
             res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
             assets.srcDirs = ['src/main/assets']
-            
-            // Aponta para a raiz estruturada contendo a pasta arm64-v8a limpa
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
@@ -359,13 +348,12 @@ gradle.projectsLoaded {
 }
 EOF
 
-# Tratamento e posicionamento do Manifesto no local correto moderno (src/main/)
-# Removido o atributo package="..." redundante para sanar a recomendação do task processReleaseMainManifest
+# Injeção Estrita do Manifesto com o vinculo do Package de volta e metadados Qt vitais
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
     
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -380,12 +368,17 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
         <activity 
             android:name="org.qtproject.qt.android.bindings.QtActivity" 
             android:exported="true" 
+            android:launchMode="singleTop"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation">
+            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            
             <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
+            <meta-data android:name="android.app.arguments" android:value="" />
+            <meta-data android:name="android.app.extract_android_style" android:value="minimal" />
         </activity>
     </application>
 </manifest>
@@ -422,7 +415,6 @@ else
 fi
 
 log_success "Fase Gradle concluida com sucesso!"
-
 # 9. APK Signing and Alignment
 log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
