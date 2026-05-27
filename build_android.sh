@@ -368,6 +368,8 @@ EOF
 
 # Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
+echo "android.useAndroidX=true" > "$ABS_OUTPUT/gradle.properties"
+echo "android.enableJetifier=true" >> "$ABS_OUTPUT/gradle.properties"
 
 log_info "Disparando compilacao com Gradle Global (Java 17)..."
 cd "$ABS_OUTPUT"
