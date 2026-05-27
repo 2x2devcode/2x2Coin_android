@@ -223,9 +223,10 @@ mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
 SOURCE_SO="$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so"
 if [ -f "$SOURCE_SO" ]; then
+    log_info "Injetando binario C++ na estrutura do Android..."
     cp "$SOURCE_SO" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so"
 else
-    log_error "Arquivo .so sumiu da raiz de build."
+    log_error "Arquivo .so nao foi encontrado em $SOURCE_SO"
     exit 1
 fi
 
@@ -239,48 +240,29 @@ log_info "Executando androiddeployqt..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# --- RASTREADOR DETETIVE ---
+# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO ---
 GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 
-if [ ! -f "$GENERATED_MANIFEST" ]; then
-    log_warn "O Qt nao salvou o manifesto em: $ABS_OUTPUT"
-    log_info "Procurando se o Qt salvou o AndroidManifest.xml em alguma pasta fantasma nas ultimas 10 segundos..."
-    
-    # Procura no sistema por Manifestos modificados AGORA
-    REAL_PATH=$(find /root/2x2Coin_android/ -name "AndroidManifest.xml" -mmin -1 | head -n 1)
-    
-    if [ -n "$REAL_PATH" ] && [ -f "$REAL_PATH" ]; then
-        log_success "ACHAMOS! O Qt escondeu o projeto em: $REAL_PATH"
-        # Reajusta a nossa variável para a pasta real que o Qt usou
-        ABS_OUTPUT=$(dirname "$REAL_PATH")
-        GENERATED_MANIFEST="$REAL_PATH"
-    else
-        echo "================================================================="
-        echo " O QT DIZ QUE DEU SUCESSO MAS NÃO CRIOU O ARQUIVO EM LUGAR NENHUM!"
-        echo " Vamos inspecionar o seu arquivo de configurações JSON abaixo:"
-        echo "================================================================="
-        cat "$DEPLOY_JSON" | grep -E "sdk|ndk|toolchain|architecture"
-        exit 1
-    fi
+if [ -f "$GENERATED_MANIFEST" ]; then
+    log_info "Aplicando patch de remocao do AppCompat..."
+    sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+    sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+else
+    log_error "Erro: O arquivo $GENERATED_MANIFEST nao foi criado pelo Qt."
+    exit 1
 fi
 
-# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO ---
-log_info "Aplicando patch de remocao do AppCompat em: $GENERATED_MANIFEST"
-sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
-sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
+# --- CONFIGURAÇÃO DO GRADLE DO SISTEMA ---
+log_info "Configurando local.properties para o Gradle..."
+echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
 
-# --- COMPILAÇÃO REAL COM O GRADLE ---
-log_info "Disparando compilacao final do Gradle..."
+log_info "Disparando compilacao real com o Gradle global..."
 cd "$ABS_OUTPUT"
 
-if [ -f "./gradlew" ]; then
-    chmod +x ./gradlew
-    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1
-else
-    gradle assembleRelease >> "../../$LOG_FILE" 2>&1
-fi
-
+# Roda o comando instalado via snap, jogando os logs na tela se falhar
+gradle assembleRelease
 GRADLE_EXIT_CODE=$?
+
 cd /root/2x2Coin_android/
 
 if [ $GRADLE_EXIT_CODE -ne 0 ]; then
@@ -294,16 +276,17 @@ GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-u
 
 if [ -f "$GENERATED_APK" ]; then
     cp "$GENERATED_APK" ./2x2coin-wallet.apk
-    log_success "Sucesso! APK gerado na raiz."
+    log_success "Sucesso! APK copiado para a raiz do projeto."
 elif [ -f "$GENERATED_APK_ALT" ]; then
     cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
-    log_success "Sucesso! APK gerado na raiz (subpasta release)."
+    log_success "Sucesso! APK copiado para a raiz do projeto."
 else
-    log_error "O APK sumiu após a compilação."
+    log_error "O processo terminou com sucesso, mas o arquivo APK nao foi encontrado."
     exit 1
 fi
 
 log_success "Build concluido com sucesso!"
+
 # 9. APK Signing and Alignment
 echo "[INFO] 9 of 10 Checking signing dependencies..."
 check_and_install() {
