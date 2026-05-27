@@ -151,7 +151,7 @@ cd "$BUILD_DIR" || exit 1
 
 EXPECTED_MANIFEST="$PROJECT_ROOT/android/AndroidManifest.xml"
 
-# 5. Run qmake
+# 5. Run qmake (Modificado para injetar Alinhamento de Página de 16KB para Android 15)
 log_info "5 of 10 Configuring project with qmake..."
 ABS_OPENSSL=$(realpath "$OPENSSL_ANDROID")
 ABS_SDK=$(realpath "$ANDROID_SDK_ROOT")
@@ -168,6 +168,7 @@ ANDROID_SDK_ROOT="$ABS_SDK" \
     ANDROID_NDK_ROOT="$ABS_NDK" \
     DEFINES+=OPENSSL_SUPPRESS_DEPRECATED \
     QMAKE_CXXFLAGS+=-Wno-deprecated-declarations \
+    QMAKE_LFLAGS+=-Wl,-z,max-page-size=16384 \
     >> "../$LOG_FILE" 2>&1 || log_error "qmake configuration failed."
 
 # 6. Compile C++
@@ -325,6 +326,7 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
+            pickFirsts += ['**/*.so']
         }
     }
 
