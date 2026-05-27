@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Final - Integração Estrita de Metadados Qt)
+# 8. Generate APK (Versão Monolítica Final - Recursos e Estilos Completos)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -224,22 +224,27 @@ ABS_OUTPUT="$BUILD_ROOT/android-build"
 # Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de qualquer coisa
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
 
-log_info "Executando androiddeployqt estrutural..."
+log_info "Executando androiddeployqt para gerar a estrutura completa de recursos..."
+# Removemos o --no-build temporariamente para ele criar os recursos e arquivos XML padrões na pasta res/
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
     --android-platform android-34 \
     --jdk "$JAVA_HOME" \
     --gradle \
-    --release \
-    --no-build >> "../$LOG_FILE" 2>&1
+    --release >> "../$LOG_FILE" 2>&1
 
-# Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
+# Garante que as pastas básicas existam sem sobrescrever o que o deploy gerou
 mkdir -p "$ABS_OUTPUT/src/main/java"
-mkdir -p "$ABS_OUTPUT/src/main/res"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 
-# Copia as configurações de deployment para os assets (Essencial para o QtActivity localizar as dependências internas)
+# Copia de forma garantida os arquivos de recursos padrão do Qt caso o deploy tenha omitido
+if [ -d "/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res" ]; then
+    log_warn "Sincronizando biblioteca de recursos visuais (res/)..."
+    cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/res/* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
+fi
+
+# Copia as configurações de deployment para os assets do motor
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
 
 # --- ESTRUTURAÇÃO DA ABI CORRETA PARA AS LIBS NATIVAS ---
@@ -296,7 +301,7 @@ android {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
-            res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
+            res.srcDirs = ['src/main/res']
             assets.srcDirs = ['src/main/assets']
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
@@ -348,7 +353,7 @@ gradle.projectsLoaded {
 }
 EOF
 
-# Injeção Estrita do Manifesto com o vinculo do Package de volta e metadados Qt vitais
+# Injeção do Manifesto Corrigido com Estilos Nativos Vinculados Corretamente
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -361,7 +366,7 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
     <application 
         android:label="2x2Coin Wallet" 
         android:icon="@android:drawable/sym_def_app_icon"
-        android:theme="@android:style/Theme.NoTitleBar" 
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar" 
         android:allowBackup="true"
         android:hasCode="true">
         
@@ -415,6 +420,7 @@ else
 fi
 
 log_success "Fase Gradle concluida com sucesso!"
+
 # 9. APK Signing and Alignment
 log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
