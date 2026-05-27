@@ -208,6 +208,8 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
+sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "35.0.0"|g' "$DEPLOY_JSON"
+
 # Garante a existência da pasta e injeta o manifesto atualizado com o ID do pacote
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
