@@ -230,7 +230,7 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
-    --android-platform android-35 \
+    --android-platform android-34 \
     --jdk "$JAVA_HOME" \
     --gradle \
     --release \
