@@ -221,6 +221,26 @@ log_info "Forçando limpeza absoluta do cache do androiddeployqt..."
 rm -rf "$ABS_OUTPUT"
 mkdir -p "$ABS_OUTPUT"
 
+SOURCE_SO=$(find /root/2x2Coin_android/build-android-arm64-release/ -name "lib2x2coin-wallet_arm64-v8a.so" -not -path "*/android-build/*" | head -n 1)
+
+if [ -z "$SOURCE_SO" ] || [ ! -f "$SOURCE_SO" ]; then
+    # Se não achou com o nome completo, procura por qualquer variação .so da carteira
+    SOURCE_SO=$(find /root/2x2Coin_android/build-android-arm64-release/ -name "lib2x2coin-wallet*.so" -not -path "*/android-build/*" | head -n 1)
+fi
+
+if [ -f "$SOURCE_SO" ]; then
+    log_info "Binario C++ encontrado em: $SOURCE_SO"
+    log_info "Copiando para a pasta alvo do Android deployment..."
+    cp "$SOURCE_SO" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so"
+else
+    echo "================================================================="
+    echo " ERRO CRÍTICO: O arquivo compilado lib2x2coin-wallet_arm64-v8a.so"
+    echo " não foi encontrado em lugar nenhum da pasta de build!"
+    echo " Certifique-se de que a etapa de compilação (make/ninja) rodou com sucesso."
+    echo "================================================================="
+    exit 1
+fi
+
 log_info "Executando androiddeployqt com flag no-build para interceptação..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
