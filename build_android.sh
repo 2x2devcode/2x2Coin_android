@@ -293,12 +293,17 @@ android {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             
-            // Mapeamento estático e agressivo para as pastas de código-fonte Java do Qt
+            // Mapeamento estático para as pastas de código-fonte Java do Qt
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
             res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
             assets.srcDirs = ['src/main/assets']
-            jniLibs.srcDirs = ['libs']
+            
+            // O SEGREDO DO TAMANHO DO APK: Força o Gradle a embutir todas as libs .so do Qt + as suas locais
+            jniLibs.srcDirs = [
+                '/root/Qt/6.5.3/android_arm64_v8a/lib', 
+                'libs'
+            ]
         }
     }
 
