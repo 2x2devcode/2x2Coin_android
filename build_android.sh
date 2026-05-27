@@ -236,6 +236,20 @@ log_info "Executing tool: $ANDROID_DEPLOY_QT"
     --release \
     >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt failed."
 
+TARGET_GRADLE="android-build/build.gradle"
+if [ -f "$TARGET_GRADLE" ]; then
+    if ! grep -q "multiDexEnabled" "$TARGET_GRADLE"; then
+        sed -i '/defaultConfig {/a \        multiDexEnabled true' "$TARGET_GRADLE"
+        log_info "Multidex injetado para unificar classes.dex e classes2.dex."
+        
+        # Compila novamente apenas o empacotamento final com a regra ativa
+        cd android-build
+        ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1
+        cp build/outputs/apk/release/android-build-release-unsigned.apk ../2x2coin-wallet.apk
+        cd ..
+    fi
+fi
+
 log_success "Build completed successfully!"
 
 APK_PATH=$(find android-build -name "*.apk" | grep release | head -n 1)
