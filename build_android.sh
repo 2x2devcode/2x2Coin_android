@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Híbrida Corrigida para Estrutura de Pastas Gradle)
+# 8. Generate APK (Versão Monolítica - Forçando Injeção de Fontes Qt 6)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -234,11 +234,20 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria as subpastas da estrutura moderna do Android exigidas pelo Gradle
-mkdir -p "$ABS_OUTPUT/src/main"
+# Cria rigorosamente a árvore de diretórios moderna do Android
+mkdir -p "$ABS_OUTPUT/src/main/java"
+mkdir -p "$ABS_OUTPUT/src/main/res"
 mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# Injeção Manual de Fallback do build.gradle com mapeamento explícito de pastas
+# --- O PULO DO GATO: Copiar os fontes Java do Qt para o escopo do projeto ---
+log_info "Injetando vinculos Java nativos do Qt 6 no nucleo do build..."
+cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/src/* "$ABS_OUTPUT/src/main/java/" 2>/dev/null
+cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/res/* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
+
+# Copiar de forma garantida o binário .so compilado para a pasta correta
+cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
+
+# Injeção Manual do build.gradle Estrito
 log_warn "Sincronizando configuracao estrutural do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
@@ -264,26 +273,36 @@ android {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             java.srcDirs = ['src/main/java']
             res.srcDirs = ['src/main/res']
-            assets.srcDirs = ['src/main/assets']
             jniLibs.srcDirs = ['libs']
         }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
         }
     }
+}
+dependencies {
+    implementation "androidx.biometric:biometric:1.4.0-rc01"
+    // Incorpora os arquivos JAR vitais do Qt diretamente na esteira de compilação
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
 }
 EOF
 
 # Tratamento e posicionamento do Manifesto no local correto (src/main/)
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
-log_warn "Injetando AndroidManifest.xml no diretorio esperado pelo modulo de versao..."
+log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application android:label="2x2Coin Wallet" android:theme="@android:style/Theme.NoTitleBar" android:allowBackup="true">
-        <activity android:name="org.qtproject.qt.android.bindings.QtActivity" android:exported="true">
+        <activity android:name="org.qtproject.qt.android.bindings.QtActivity" android:exported="true" android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -293,9 +312,6 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
     </application>
 </manifest>
 EOF
-
-# Copiar de forma garantida o binário .so para dentro da pasta que o Gradle vai empacotar
-cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
 
 # Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
@@ -313,29 +329,17 @@ if [ $GRADLE_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Resgate e centralização do APK gerado pelo Gradle (Ajustado para o padrão do Gradle moderno)
-GENERATED_APK="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-unsigned.apk"
-GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-unsigned.apk"
-GENERATED_APK_THIRD="$ABS_OUTPUT/build/outputs/apk/release/android-build-release.apk"
-
-if [ -f "$GENERATED_APK" ]; then
-    cp "$GENERATED_APK" ./2x2coin-wallet-release-unsigned.apk
-elif [ -f "$GENERATED_APK_ALT" ]; then
-    cp "$GENERATED_APK_ALT" ./2x2coin-wallet-release-unsigned.apk
-elif [ -f "$GENERATED_APK_THIRD" ]; then
-    cp "$GENERATED_APK_THIRD" ./2x2coin-wallet-release-unsigned.apk
+# Resgate e centralização do APK gerado pelo Gradle
+FOUND_RAW_APK=$(find "$ABS_OUTPUT/build/outputs/apk/" -name "*.apk" | head -n 1)
+if [ -n "$FOUND_RAW_APK" ] && [ -f "$FOUND_RAW_APK" ]; then
+    cp "$FOUND_RAW_APK" ./2x2coin-wallet-release-unsigned.apk
 else
-    # Busca recursiva caso o nome do arquivo mude conforme a assinatura interna
-    FOUND_RAW_APK=$(find "$ABS_OUTPUT/build/outputs/apk/" -name "*.apk" | head -n 1)
-    if [ -n "$FOUND_RAW_APK" ]; then
-        cp "$FOUND_RAW_APK" ./2x2coin-wallet-release-unsigned.apk
-    else
-        log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi localizado."
-        exit 1
-    fi
+    log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi localizado."
+    exit 1
 fi
 
 log_success "Fase Gradle concluida com sucesso!"
+
 # 9. APK Signing and Alignment
 log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
