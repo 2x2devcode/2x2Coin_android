@@ -214,7 +214,7 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-ABS_OUTPUT="/root/2x2Coin_android/build-android-arm64-release/android-build"
+ABS_OUTPUT="android-build"
 
 log_info "Executando androiddeployqt com flag no-build para interceptação..."
 "$ANDROID_DEPLOY_QT" \
@@ -227,37 +227,44 @@ log_info "Executando androiddeployqt com flag no-build para interceptação..."
     --no-build \
     >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt generation failed."
 
+# [TRAVA DE SEGURANÇA 1] Verifica se o comando anterior falhou ou se a pasta não nasceu
+if [ ! -d "$ABS_OUTPUT" ] || [ ! -f "$ABS_OUTPUT/gradlew" ]; then
+    echo "================================================================="
+    echo " ERRO CRÍTICO: O androiddeployqt não conseguiu gerar a pasta do projeto!"
+    echo " Verifique as mensagens de erro do Qt logo acima."
+    echo "================================================================="
+    exit 1
+fi
+
 # --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO GERADO ---
 GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 
 if [ -f "$GENERATED_MANIFEST" ]; then
     log_info "Manifesto gerado encontrado. Removendo referencias ao AppCompat fantasma..."
-    # Troca o tema problemático pelo tema padrão nativo do próprio Android (NoTitleBar)
     sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     log_info "Manifesto corrigido com sucesso."
-else
-    log_error "Manifesto gerado pelo Qt nao foi encontrado em $GENERATED_MANIFEST"
 fi
 
-# --- COMPILAÇÃO MANUAL UTILIZANDO CAMINHOS ABSOLUTOS ---
+# --- COMPILAÇÃO MANUAL ---
 log_info "Disparando compilacao final do Gradle..."
 
-if [ -d "$ABS_OUTPUT" ]; then
-    cd "$ABS_OUTPUT"
-    log_info "Diretorio de build acessado de forma absoluta: $(pwd)"
-    
-    # Garante que o Gradle gerado tenha permissão de execução no Linux
-    chmod +x gradlew
-    
-    # Roda o build real do APK injetando os logs no arquivo principal
-    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Gradle compilation failed."
-else
-    log_error "Diretorio do Gradle nao existe em: $ABS_OUTPUT"
-fi
+# Entra na pasta criada de forma segura
+cd "$ABS_OUTPUT"
+chmod +x gradlew
 
-# Garante o retorno seguro para a raiz do projeto de forma absoluta
+# Executa o build real
+./gradlew assembleRelease
+GRADLE_EXIT_CODE=$?
+
+# Volta para a raiz do projeto de forma absoluta
 cd /root/2x2Coin_android/
+
+# [TRAVA DE SEGURANÇA 2] Se o gradle falhar, para o script aqui
+if [ $GRADLE_EXIT_CODE -ne 0 ]; then
+    log_error "A compilacao do Gradle falhou."
+    exit 1
+fi
 
 # --- LOCALIZAÇÃO E CÓPIA DO APK FINAL ---
 GENERATED_APK="/root/2x2Coin_android/build-android-arm64-release/android-build/build/outputs/apk/android-build-release-unsigned.apk"
@@ -270,7 +277,8 @@ elif [ -f "$GENERATED_APK_ALT" ]; then
     cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
     log_success "APK (da subpasta release) copiado com sucesso para a raiz!"
 else
-    log_error "O Gradle terminou o processo, mas o APK nao foi encontrado nos caminhos mapeados."
+    log_error "O Gradle terminou, mas o APK nao foi encontrado em nenhum caminho."
+    exit 1
 fi
 
 log_success "Build completed successfully!"
