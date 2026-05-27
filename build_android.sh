@@ -208,7 +208,7 @@ if [ ! -f "$DEPLOY_JSON" ]; then
     log_error "Deployment JSON file not found."
 fi
 
-sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "35.0.0"|g' "$DEPLOY_JSON"
+sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34.0.0"|g' "$DEPLOY_JSON"
 
 TARGET_GRADLE="android-build/build.gradle"
 
