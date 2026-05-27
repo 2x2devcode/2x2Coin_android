@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Final Otimizada com Alinhamento de Memória e Metadados)
+# 8. Generate APK (Versão Monolítica - Integração Total de Plugins Gráficos)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -221,7 +221,7 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 BUILD_ROOT="/root/2x2Coin_android/build-android-arm64-release"
 ABS_OUTPUT="$BUILD_ROOT/android-build"
 
-# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de qualquer coisa
+# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
 
 log_info "Executando androiddeployqt estrutural..."
@@ -234,13 +234,13 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
+# Cria a árvore de diretórios moderna do Android
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 
-# Criação do arquivo de estilos para herança correta do AppCompat
+# Estilos básicos com herança correta
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
 <resources>
     <style name="QtTheme" parent="Theme.AppCompat.Light.NoActionBar">
@@ -250,7 +250,7 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
 </resources>
 EOF
 
-# Injeção do Ícone de Inicialização
+# Vetor do ícone de inicialização
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -263,19 +263,27 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 </vector>
 EOF
 
-# Copia as configurações de deployment essenciais para a pasta de assets
+# Garante as configurações de deployment nos assets
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
 
-# --- ESTRUTURAÇÃO DA ABI CORRETA PARA AS LIBS NATIVAS ---
+# --- INJEÇÃO DA ESTRUTURA COMPLETA DE PLUGINS E LIBS DO QT ---
 JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
 mkdir -p "$JNILIBS_DIR"
 
-log_warn "Montando ecossistema de bibliotecas binarias arm64-v8a..."
+log_warn "Montando ecossistema de bibliotecas binarias e plugins arm64-v8a..."
+# Copia as bibliotecas base do Qt
 cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$JNILIBS_DIR/" 2>/dev/null
-cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
-# --------------------------------------------------------
 
-# Injeção Manual do build.gradle Estruturado de Forma Correta
+# Copia os plugins essenciais de plataforma e motor gráfico (Crucial para sanar tela preta)
+if [ -d "/root/Qt/6.5.3/android_arm64_v8a/plugins" ]; then
+    find /root/Qt/6.5.3/android_arm64_v8a/plugins/ -name "*.so" -exec cp {} "$JNILIBS_DIR/" \; 2>/dev/null
+fi
+
+# Copia a biblioteca nativa da sua carteira compilada
+cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
+# --------------------------------------------------------------
+
+# Injeção Manual do build.gradle
 log_warn "Sincronizando configuracao estrutural do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
@@ -314,13 +322,9 @@ android {
     buildToolsVersion "34.0.0"
     ndkVersion "25.2.9519653"
 
-    // GARANTE QUE O GRADLE DEIXE AS LIBS .SO DESCOMPACTADAS DE FORMA COMPATÍVEL COM ANDROID 15
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
-        }
-        resources {
-            excludes += ['**/libQt6*.so']
         }
     }
 
@@ -382,7 +386,7 @@ gradle.projectsLoaded {
 }
 EOF
 
-# Injeção Avançada do AndroidManifest.xml com Metadados Completos do Motor Qt 6
+# Injeção do AndroidManifest com os mapeamentos estáticos de carregamento do Qt 6
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -413,8 +417,9 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
             <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
             <meta-data android:name="android.app.arguments" android:value="" />
             <meta-data android:name="android.app.extract_android_style" android:value="minimal" />
-            
             <meta-data android:name="android.app.init_classes" android:value="org.qtproject.qt.android.QtNative" />
+            
+            <meta-data android:name="android.app.plugins" android:value="plugins_platforms_android_libqandroid.so" />
         </activity>
     </application>
 </manifest>
@@ -441,10 +446,8 @@ if [ $GRADLE_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Resgate do APK gerado pelo Gradle para a raiz para sofrer o Zipalign e Assinatura corretas das etapas subsequentes
 FOUND_RAW_APK=$(find "$ABS_OUTPUT/build/outputs/apk/" -name "*.apk" | head -n 1)
 if [ -n "$FOUND_RAW_APK" ] && [ -f "$FOUND_RAW_APK" ]; then
-    # Copia como não assinado para que o seu script (nas Etapas 9 e 10) alinhe e assine o arquivo final
     cp "$FOUND_RAW_APK" ./2x2coin-wallet-release-unsigned.apk
 else
     log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi localizado."
