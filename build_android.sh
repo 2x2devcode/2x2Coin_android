@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Final - Compatibilidade de Estilos e Ícones)
+# 8. Generate APK (Versão Final Otimizada com Alinhamento de Memória e Metadados)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -240,8 +240,17 @@ mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 
-# --- INJEÇÃO DO ÍCONE FALTANTE (Corrige erro do NotificationHelper.java) ---
-log_warn "Injetando ic_launcher base para evitar erros de compilacao Java..."
+# Criação do arquivo de estilos para herança correta do AppCompat
+cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
+<resources>
+    <style name="QtTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
+EOF
+
+# Injeção do Ícone de Inicialização
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -254,7 +263,7 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 </vector>
 EOF
 
-# Copia as configurações de deployment para os assets do motor
+# Copia as configurações de deployment essenciais para a pasta de assets
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
 
 # --- ESTRUTURAÇÃO DA ABI CORRETA PARA AS LIBS NATIVAS ---
@@ -291,11 +300,8 @@ apply plugin: 'com.android.application'
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
-    
-    // Suporte obrigatório ao AndroidX e retrocompatibilidade de Temas (Corrige LinkApplicationAndroidResourcesTask)
     implementation "androidx.appcompat:appcompat:1.6.1"
     implementation "androidx.biometric:biometric:1.1.0"
-    
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
 }
@@ -308,7 +314,15 @@ android {
     buildToolsVersion "34.0.0"
     ndkVersion "25.2.9519653"
 
-    packagingOptions.jniLibs.useLegacyPackaging true
+    // GARANTE QUE O GRADLE DEIXE AS LIBS .SO DESCOMPACTADAS DE FORMA COMPATÍVEL COM ANDROID 15
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+        resources {
+            excludes += ['**/libQt6*.so']
+        }
+    }
 
     sourceSets {
         main {
@@ -368,7 +382,7 @@ gradle.projectsLoaded {
 }
 EOF
 
-# Injeção do Manifesto Higienizado e alinhado com os estilos do AppCompat instalados
+# Injeção Avançada do AndroidManifest.xml com Metadados Completos do Motor Qt 6
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -381,7 +395,7 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
     <application 
         android:label="2x2Coin Wallet" 
         android:icon="@drawable/ic_launcher"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar" 
+        android:theme="@style/QtTheme" 
         android:allowBackup="true"
         android:hasCode="true">
         
@@ -399,6 +413,8 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
             <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
             <meta-data android:name="android.app.arguments" android:value="" />
             <meta-data android:name="android.app.extract_android_style" android:value="minimal" />
+            
+            <meta-data android:name="android.app.init_classes" android:value="org.qtproject.qt.android.QtNative" />
         </activity>
     </application>
 </manifest>
@@ -425,9 +441,10 @@ if [ $GRADLE_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Resgate e centralização do APK gerado pelo Gradle
+# Resgate do APK gerado pelo Gradle para a raiz para sofrer o Zipalign e Assinatura corretas das etapas subsequentes
 FOUND_RAW_APK=$(find "$ABS_OUTPUT/build/outputs/apk/" -name "*.apk" | head -n 1)
 if [ -n "$FOUND_RAW_APK" ] && [ -f "$FOUND_RAW_APK" ]; then
+    # Copia como não assinado para que o seu script (nas Etapas 9 e 10) alinhe e assine o arquivo final
     cp "$FOUND_RAW_APK" ./2x2coin-wallet-release-unsigned.apk
 else
     log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi localizado."
