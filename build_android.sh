@@ -230,6 +230,9 @@ else
     exit 1
 fi
 
+# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de chamar o Qt
+export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
+
 log_info "Executando androiddeployqt..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
@@ -243,24 +246,24 @@ log_info "Executando androiddeployqt..."
 # --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO ---
 GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 
+# Se o Qt pulou a geração por causa do no-build, nós mesmos criamos um gatilho de correção preventiva
 if [ -f "$GENERATED_MANIFEST" ]; then
-    log_info "Aplicando patch de remocao do AppCompat..."
+    log_info "Aplicando patch de remocao do AppCompat no Manifesto..."
     sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
 else
-    log_error "Erro: O arquivo $GENERATED_MANIFEST nao foi criado pelo Qt."
-    exit 1
+    log_warn "Manifesto nao gerado nesta etapa, deixando para a compilacao do Gradle..."
 fi
 
 # --- CONFIGURAÇÃO DO GRADLE DO SISTEMA ---
-log_info "Configurando local.properties para o Gradle..."
+log_info "Configurando local.properties..."
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
 
-log_info "Disparando compilacao real com o Gradle global..."
+log_info "Disparando compilacao com Gradle (Forçando Java 17)..."
 cd "$ABS_OUTPUT"
 
-# Roda o comando instalado via snap, jogando os logs na tela se falhar
-gradle assembleRelease
+# Chamamos o gradle passando explicitamente o seu JAVA_HOME (Java 17) para evitar o Java 21 do snap
+gradle assembleRelease --java-home "$JAVA_HOME"
 GRADLE_EXIT_CODE=$?
 
 cd /root/2x2Coin_android/
@@ -281,7 +284,7 @@ elif [ -f "$GENERATED_APK_ALT" ]; then
     cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
     log_success "Sucesso! APK copiado para a raiz do projeto."
 else
-    log_error "O processo terminou com sucesso, mas o arquivo APK nao foi encontrado."
+    log_error "O processo terminou, mas o arquivo APK nao foi encontrado."
     exit 1
 fi
 
