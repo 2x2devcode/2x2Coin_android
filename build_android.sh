@@ -200,7 +200,9 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
         >> "../$LOG_FILE" 2>&1
 fi
 
-# 8. Generate APK (Versão Híbrida e Segura contra Pastas Vazias)
+# ==============================================================================
+# 8. Generate APK (Versão Híbrida Corrigida para Estrutura de Pastas Gradle)
+# ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
 if [ "$USER" = "root" ] || [ "$HOME" = "/root" ]; then
@@ -232,10 +234,13 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Injeção Manual de Fallback caso a pasta tenha sido ignorada pelo Qt
-if [ ! -f "$ABS_OUTPUT/build.gradle" ]; then
-    log_warn "O Qt pulou a geracao de arquivos estruturais. Criando build.gradle manual..."
-    cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
+# Cria as subpastas da estrutura moderna do Android exigidas pelo Gradle
+mkdir -p "$ABS_OUTPUT/src/main"
+mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
+
+# Injeção Manual de Fallback do build.gradle com mapeamento explícito de pastas
+log_warn "Sincronizando configuracao estrutural do build.gradle..."
+cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
     repositories { google(); mavenCentral() }
     dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
@@ -254,6 +259,15 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    sourceSets {
+        main {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+            java.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['src/main/assets']
+            jniLibs.srcDirs = ['libs']
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
@@ -261,13 +275,11 @@ android {
     }
 }
 EOF
-fi
 
-# Tratamento do Manifesto
-GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
-if [ ! -f "$GENERATED_MANIFEST" ]; then
-    log_warn "Criando AndroidManifest.xml em modo Fallback estrutural..."
-    cat << 'EOF' > "$GENERATED_MANIFEST"
+# Tratamento e posicionamento do Manifesto no local correto (src/main/)
+GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
+log_warn "Injetando AndroidManifest.xml no diretorio esperado pelo modulo de versao..."
+cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
     <application android:label="2x2Coin Wallet" android:theme="@android:style/Theme.NoTitleBar" android:allowBackup="true">
@@ -281,15 +293,9 @@ if [ ! -f "$GENERATED_MANIFEST" ]; then
     </application>
 </manifest>
 EOF
-else
-    log_info "Aplicando patch de remocao do AppCompat no Manifesto gerado..."
-    sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
-    sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
-fi
 
-# Forçar a reinjeção garantida do .so de compilação da Etapa 7
-mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
-cp "$BUILD_ROOT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
+# Copiar de forma garantida o binário .so para dentro da pasta que o Gradle vai empacotar
+cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
 
 # Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
@@ -307,9 +313,9 @@ if [ $GRADLE_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Resgate e centralização do APK gerado pelo Gradle
-GENERATED_APK="$ABS_OUTPUT/build/outputs/apk/android-build-release-unsigned.apk"
-GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-unsigned.apk"
+# Resgate e centralização do APK gerado pelo Gradle (Ajustado para o padrão do Gradle moderno)
+GENERATED_APK="$ABS_OUTPUT/build/outputs/apk/release/android-build-release-unsigned.apk"
+GENERATED_APK_ALT="$ABS_OUTPUT/build/outputs/apk/release/android-build-unsigned.apk"
 GENERATED_APK_THIRD="$ABS_OUTPUT/build/outputs/apk/release/android-build-release.apk"
 
 if [ -f "$GENERATED_APK" ]; then
@@ -319,12 +325,17 @@ elif [ -f "$GENERATED_APK_ALT" ]; then
 elif [ -f "$GENERATED_APK_THIRD" ]; then
     cp "$GENERATED_APK_THIRD" ./2x2coin-wallet-release-unsigned.apk
 else
-    log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi mapeado."
-    exit 1
+    # Busca recursiva caso o nome do arquivo mude conforme a assinatura interna
+    FOUND_RAW_APK=$(find "$ABS_OUTPUT/build/outputs/apk/" -name "*.apk" | head -n 1)
+    if [ -n "$FOUND_RAW_APK" ]; then
+        cp "$FOUND_RAW_APK" ./2x2coin-wallet-release-unsigned.apk
+    else
+        log_error "O processo do Gradle rodou com sucesso, mas o arquivo APK bruto nao foi localizado."
+        exit 1
+    fi
 fi
 
 log_success "Fase Gradle concluida com sucesso!"
-
 # 9. APK Signing and Alignment
 log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
