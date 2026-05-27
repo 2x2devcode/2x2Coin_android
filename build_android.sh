@@ -216,6 +216,11 @@ cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build
 
 ABS_OUTPUT="/root/2x2Coin_android/build-android-arm64-release/android-build"
 
+log_info "Forçando limpeza absoluta do cache do androiddeployqt..."
+# O SEGREDO: Apaga a pasta antiga completamente para forçar o Qt a reconstruir tudo do zero
+rm -rf "$ABS_OUTPUT"
+mkdir -p "$ABS_OUTPUT"
+
 log_info "Executando androiddeployqt com flag no-build para interceptação..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
@@ -245,27 +250,25 @@ if [ -f "$GENERATED_MANIFEST" ]; then
     sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     log_info "Manifesto corrigido com sucesso."
 else
-    log_warn "Aviso: Manifesto nao encontrado em $GENERATED_MANIFEST"
+    log_error "Erro Critico: Mesmo sem cache, o Qt nao gerou o arquivo em $GENERATED_MANIFEST"
+    exit 1
 fi
 
 # --- COMPILAÇÃO MANUAL VIA GRADLE ---
 log_info "Disparando compilacao final do Gradle..."
 
-# Forçamos o redirecionamento para a pasta exata confirmada pelo log
 cd "$ABS_OUTPUT"
 
-# Se o Qt 6.5.3 não gerou o gradlew local, usamos o comando gradle global do sistema
+# Como limpamos o cache, o Qt criará o gradlew original de forma limpa
 if [ -f "./gradlew" ]; then
     chmod +x ./gradlew
     ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1
 else
-    log_info "Usando o Gradle do sistema operacional..."
+    log_info "Gradlew nao encontrado, usando Gradle global..."
     gradle assembleRelease >> "../../$LOG_FILE" 2>&1
 fi
 
 GRADLE_EXIT_CODE=$?
-
-# Retorna para a raiz do projeto de forma absoluta
 cd /root/2x2Coin_android/
 
 if [ $GRADLE_EXIT_CODE -ne 0 ]; then
@@ -284,11 +287,12 @@ elif [ -f "$GENERATED_APK_ALT" ]; then
     cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
     log_success "APK copiado da subpasta release para a raiz!"
 else
-    log_error "O Gradle compilou com sucesso, mas o arquivo APK nao foi encontrado nos caminhos mapeados."
+    log_error "O Gradle compilou, mas o APK nao foi encontrado."
     exit 1
 fi
 
 log_success "Build completed successfully!"
+
 # 9. APK Signing and Alignment
 echo "[INFO] 9 of 10 Checking signing dependencies..."
 check_and_install() {
