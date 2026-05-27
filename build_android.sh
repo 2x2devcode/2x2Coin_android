@@ -214,29 +214,26 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-ABS_OUTPUT="/root/2x2Coin_android/build-android-arm64-release/android-build"
+BUILD_ROOT="/root/2x2Coin_android/build-android-arm64-release"
+ABS_OUTPUT="$BUILD_ROOT/android-build"
 
-log_info "Forçando limpeza absoluta do cache do androiddeployqt..."
-# O SEGREDO: Apaga a pasta antiga completamente para forçar o Qt a reconstruir tudo do zero
+log_info "Limpando estruturas antigas..."
 rm -rf "$ABS_OUTPUT"
-mkdir -p "$ABS_OUTPUT"
 
-SOURCE_SO=$(find /root/2x2Coin_android/build-android-arm64-release/ -name "lib2x2coin-wallet_arm64-v8a.so" -not -path "*/android-build/*" | head -n 1)
+# Cria a árvore de diretórios exata que o NDK precisa ler
+mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-if [ -z "$SOURCE_SO" ] || [ ! -f "$SOURCE_SO" ]; then
-    # Se não achou com o nome completo, procura por qualquer variação .so da carteira
-    SOURCE_SO=$(find /root/2x2Coin_android/build-android-arm64-release/ -name "lib2x2coin-wallet*.so" -not -path "*/android-build/*" | head -n 1)
-fi
+# --- INJEÇÃO DO BINÁRIO ENCONTRADO ---
+SOURCE_SO="$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so"
 
 if [ -f "$SOURCE_SO" ]; then
-    log_info "Binario C++ encontrado em: $SOURCE_SO"
-    log_info "Copiando para a pasta alvo do Android deployment..."
+    log_info "Binário C++ detectado com sucesso. Copiando para a estrutura do APK..."
     cp "$SOURCE_SO" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so"
 else
     echo "================================================================="
-    echo " ERRO CRÍTICO: O arquivo compilado lib2x2coin-wallet_arm64-v8a.so"
-    echo " não foi encontrado em lugar nenhum da pasta de build!"
-    echo " Certifique-se de que a etapa de compilação (make/ninja) rodou com sucesso."
+    echo " ERRO CRÍTICO: O arquivo .so não foi encontrado em:"
+    echo " $SOURCE_SO"
+    echo " Verifique se as etapas anteriores limparam a pasta antes da hora."
     echo "================================================================="
     exit 1
 fi
