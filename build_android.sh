@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Corrigida - Estrutura e Vinculos Qt 6)
+# 8. Generate APK (Versão Monolítica Final - Injeção Nativa de Libs e AndroidX)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -239,7 +239,7 @@ mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res"
 mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# Copiar de forma garantida o binário .so compilado para a pasta correta de empacotamento
+# Copiar de forma garantida o binário .so compilado para a pasta local de empacotamento
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/lib2x2coin-wallet_arm64-v8a.so" 2>/dev/null
 
 # Injeção Manual do build.gradle Estruturado de Forma Correta
@@ -293,15 +293,15 @@ android {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             
-            // Mapeamento estático para as pastas de código-fonte Java do Qt
+            // Mapeamento estático e agressivo para as pastas de código-fonte Java do Qt
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
             res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'src/main/res']
             assets.srcDirs = ['src/main/assets']
             
-            // O SEGREDO DO TAMANHO DO APK: Força o Gradle a embutir todas as libs .so do Qt + as suas locais
+            // CORREÇÃO CRUCIAL DOS 5MB: Força a inclusão física de todas as libs .so do motor do Qt + a sua
             jniLibs.srcDirs = [
-                '/root/Qt/6.5.3/android_arm64_v8a/lib', 
+                '/root/Qt/6.5.3/android_arm64_v8a/lib',
                 'libs'
             ]
         }
@@ -354,13 +354,27 @@ gradle.projectsLoaded {
 EOF
 
 # Tratamento e posicionamento do Manifesto no local correto moderno (src/main/)
+# Adicionado ícone padrão e permissões para garantir visibilidade no Android 15
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:label="2x2Coin Wallet" android:theme="@android:style/Theme.NoTitleBar" android:allowBackup="true">
-        <activity android:name="org.qtproject.qt.android.bindings.QtActivity" android:exported="true" android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
+    
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application 
+        android:label="2x2Coin Wallet" 
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:theme="@android:style/Theme.NoTitleBar" 
+        android:allowBackup="true"
+        android:hasCode="true">
+        
+        <activity 
+            android:name="org.qtproject.qt.android.bindings.QtActivity" 
+            android:exported="true" 
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -373,6 +387,9 @@ EOF
 
 # Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
+
+# Ativando suporte ao AndroidX e Jetifier
+log_warn "Injetando propriedades AndroidX globais..."
 echo "android.useAndroidX=true" > "$ABS_OUTPUT/gradle.properties"
 echo "android.enableJetifier=true" >> "$ABS_OUTPUT/gradle.properties"
 
