@@ -210,6 +210,16 @@ fi
 
 sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "35.0.0"|g' "$DEPLOY_JSON"
 
+TARGET_GRADLE="android-build/build.gradle"
+
+if [ -f "$TARGET_GRADLE" ]; then
+    # Injeta 'multiDexEnabled true' dentro do bloco defaultConfig se ele não existir
+    if ! grep -q "multiDexEnabled" "$TARGET_GRADLE"; then
+        sed -i '/defaultConfig {/a \        multiDexEnabled true' "$TARGET_GRADLE"
+        log_info "Multidex habilitado com sucesso no build.gradle gerado."
+    fi
+fi
+
 # Garante a existência da pasta e injeta o manifesto atualizado com o ID do pacote
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
