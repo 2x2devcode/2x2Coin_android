@@ -297,7 +297,7 @@ echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
 log_info "Disparando compilacao com Gradle Global (Java 17)..."
 cd "$ABS_OUTPUT"
 
-gradle assembleRelease --java-home "$JAVA_HOME"
+gradle assembleRelease
 GRADLE_EXIT_CODE=$?
 
 cd /root/2x2Coin_android/
