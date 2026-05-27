@@ -214,10 +214,9 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 mkdir -p android-build
 cp /root/2x2Coin_android/android/AndroidManifest.xml /root/2x2Coin_android/build-android-arm64-release/android-build/AndroidManifest.xml
 
-ABS_OUTPUT=$(realpath "android-build")
+ABS_OUTPUT="/root/2x2Coin_android/build-android-arm64-release/android-build"
 
 log_info "Executando androiddeployqt com flag no-build para interceptação..."
-# O SEGREDO: --no-build faz o Qt apenas GERAR as pastas e o Manifesto, sem compilar ainda!
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
@@ -228,10 +227,12 @@ log_info "Executando androiddeployqt com flag no-build para interceptação..."
     --no-build \
     >> "../$LOG_FILE" 2>&1 || log_error "androiddeployqt generation failed."
 
-GENERATED_MANIFEST="android-build/AndroidManifest.xml"
+# --- INTERCEPTAÇÃO E CORREÇÃO DO MANIFESTO GERADO ---
+GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 
 if [ -f "$GENERATED_MANIFEST" ]; then
-    log_info "Manifesto gerado encontrado. Removendo referencias ao AppCompat..."
+    log_info "Manifesto gerado encontrado. Removendo referencias ao AppCompat fantasma..."
+    # Troca o tema problemático pelo tema padrão nativo do próprio Android (NoTitleBar)
     sed -i 's|style/Theme.AppCompat.Light.NoActionBar|android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     sed -i 's|@style/Theme.AppCompat|@android:style/Theme.NoTitleBar|g' "$GENERATED_MANIFEST"
     log_info "Manifesto corrigido com sucesso."
@@ -239,44 +240,40 @@ else
     log_error "Manifesto gerado pelo Qt nao foi encontrado em $GENERATED_MANIFEST"
 fi
 
-# --- COMPILAÇÃO MANUAL COM CAMINHOS CORRIGIDOS ---
+# --- COMPILAÇÃO MANUAL UTILIZANDO CAMINHOS ABSOLUTOS ---
 log_info "Disparando compilacao final do Gradle..."
 
-# Entra na pasta correta onde o gradley e as configurações foram gerados
-cd "$ABS_OUTPUT"
-
-# Executa o wrapper do Gradle garantindo permissão de execução
-chmod +x gradlew
-./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Gradle compilation failed."
-
-# Volta para a raiz do script
-cd ..
-
-# Copia o APK usando o caminho exato confirmado pelo seu log
-GENERATED_APK="android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
-# Caso o Gradle antigo tenha gerado direto na raiz de apks (sem a pasta /release/)
-if [ ! -f "$GENERATED_APK" ]; then
-    GENERATED_APK="android-build/build/outputs/apk/android-build-release-unsigned.apk"
+if [ -d "$ABS_OUTPUT" ]; then
+    cd "$ABS_OUTPUT"
+    log_info "Diretorio de build acessado de forma absoluta: $(pwd)"
+    
+    # Garante que o Gradle gerado tenha permissão de execução no Linux
+    chmod +x gradlew
+    
+    # Roda o build real do APK injetando os logs no arquivo principal
+    ./gradlew assembleRelease >> "../../$LOG_FILE" 2>&1 || log_error "Gradle compilation failed."
+else
+    log_error "Diretorio do Gradle nao existe em: $ABS_OUTPUT"
 fi
+
+# Garante o retorno seguro para a raiz do projeto de forma absoluta
+cd /root/2x2Coin_android/
+
+# --- LOCALIZAÇÃO E CÓPIA DO APK FINAL ---
+GENERATED_APK="/root/2x2Coin_android/build-android-arm64-release/android-build/build/outputs/apk/android-build-release-unsigned.apk"
+GENERATED_APK_ALT="/root/2x2Coin_android/build-android-arm64-release/android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
 
 if [ -f "$GENERATED_APK" ]; then
     cp "$GENERATED_APK" ./2x2coin-wallet.apk
-    log_success "APK copiado com sucesso para a raiz!"
+    log_success "APK copiado com sucesso para a raiz do projeto!"
+elif [ -f "$GENERATED_APK_ALT" ]; then
+    cp "$GENERATED_APK_ALT" ./2x2coin-wallet.apk
+    log_success "APK (da subpasta release) copiado com sucesso para a raiz!"
 else
-    log_error "APK gerado nao foi encontrado em nenhum dos caminhos padrao."
+    log_error "O Gradle terminou o processo, mas o APK nao foi encontrado nos caminhos mapeados."
 fi
 
 log_success "Build completed successfully!"
-
-APK_PATH=$(find android-build -name "*.apk" | grep release | head -n 1)
-if [ -n "$APK_PATH" ]; then
-    cp "$APK_PATH" ../2x2coin-wallet-release.apk
-    log_info "APK copied to root: 2x2coin-wallet-release.apk"
-else
-    log_error "APK generated but not located!"
-fi
-
-cd ..
 
 # 9. APK Signing and Alignment
 echo "[INFO] 9 of 10 Checking signing dependencies..."
