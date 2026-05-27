@@ -201,7 +201,7 @@ if [ ! -f "$KEYSTORE_NAME" ]; then
 fi
 
 # ==============================================================================
-# 8. Generate APK (Versão Monolítica Final - Recursos e Estilos Completos)
+# 8. Generate APK (Versão Monolítica Final - Compatibilidade de Estilos e Ícones)
 # ==============================================================================
 log_info "8 of 10 Starting APK generation..."
 
@@ -224,25 +224,35 @@ ABS_OUTPUT="$BUILD_ROOT/android-build"
 # Forçamos o Gradle a aceitar o Java 17 do sistema globalmente antes de qualquer coisa
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
 
-log_info "Executando androiddeployqt para gerar a estrutura completa de recursos..."
-# Removemos o --no-build temporariamente para ele criar os recursos e arquivos XML padrões na pasta res/
+log_info "Executando androiddeployqt estrutural..."
 "$ANDROID_DEPLOY_QT" \
     --input "$DEPLOY_JSON" \
     --output "$ABS_OUTPUT" \
     --android-platform android-34 \
     --jdk "$JAVA_HOME" \
     --gradle \
-    --release >> "../$LOG_FILE" 2>&1
+    --release \
+    --no-build >> "../$LOG_FILE" 2>&1
 
-# Garante que as pastas básicas existam sem sobrescrever o que o deploy gerou
+# Cria rigorosamente a árvore de diretórios moderna do Android exigida pelo Gradle 8
 mkdir -p "$ABS_OUTPUT/src/main/java"
+mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
+mkdir -p "$ABS_OUTPUT/src/main/res/values"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 
-# Copia de forma garantida os arquivos de recursos padrão do Qt caso o deploy tenha omitido
-if [ -d "/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res" ]; then
-    log_warn "Sincronizando biblioteca de recursos visuais (res/)..."
-    cp -r /root/Qt/6.5.3/android_arm64_v8a/src/android/java/res/* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
-fi
+# --- INJEÇÃO DO ÍCONE FALTANTE (Corrige erro do NotificationHelper.java) ---
+log_warn "Injetando ic_launcher base para evitar erros de compilacao Java..."
+cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FF000000"
+      android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,13H7v-2h5V6l5,6 -5,6v-5z"/>
+</vector>
+EOF
 
 # Copia as configurações de deployment para os assets do motor
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
@@ -281,7 +291,11 @@ apply plugin: 'com.android.application'
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    
+    // Suporte obrigatório ao AndroidX e retrocompatibilidade de Temas (Corrige LinkApplicationAndroidResourcesTask)
+    implementation "androidx.appcompat:appcompat:1.6.1"
     implementation "androidx.biometric:biometric:1.1.0"
+    
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
 }
@@ -346,6 +360,7 @@ gradle.projectsLoaded {
         }
         pluginManager.withPlugin('com.android.application') {
             dependencies {
+                implementation "androidx.appcompat:appcompat:1.6.1"
                 implementation "androidx.biometric:biometric:1.1.0"
             }
         }
@@ -353,7 +368,7 @@ gradle.projectsLoaded {
 }
 EOF
 
-# Injeção do Manifesto Corrigido com Estilos Nativos Vinculados Corretamente
+# Injeção do Manifesto Higienizado e alinhado com os estilos do AppCompat instalados
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -365,8 +380,8 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
 
     <application 
         android:label="2x2Coin Wallet" 
-        android:icon="@android:drawable/sym_def_app_icon"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar" 
+        android:icon="@drawable/ic_launcher"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar" 
         android:allowBackup="true"
         android:hasCode="true">
         
