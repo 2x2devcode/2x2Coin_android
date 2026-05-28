@@ -235,7 +235,7 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria a árvore de diretórios moderna do Android
+# Cria a árvore de diretórios moderna e pastas de densidade para os ícones (Android 15 Fix)
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
@@ -244,6 +244,7 @@ mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-mdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-hdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xhdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi"
+mkdir -p "$ABS_OUTPUT/assets"
 
 # Estilos básicos com herança correta
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
@@ -255,7 +256,7 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
 </resources>
 EOF
 
-# Vetor do ícone de inicialização
+# Vetor do ícone de inicialização (Mapeia o fallback padrão caso não existam PNGs)
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -268,8 +269,13 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
 </vector>
 EOF
 
-# Garante as configurações de deployment nos assets
+# Cópia duplicada do ícone básico para as pastas mipmap para evitar erro de pacote "sem ícone"
+cp "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml" 2>/dev/null
+cp "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.xml" 2>/dev/null
+
+# Garante as configurações de deployment nos dois caminhos de assets mapeados pelo motor Qt
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
+cp "$DEPLOY_JSON" "$ABS_OUTPUT/assets/android_deploy_settings.json" 2>/dev/null
 
 # --- INJEÇÃO DA ESTRUTURA COMPLETA DE PLUGINS E LIBS DO QT ---
 JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
@@ -288,7 +294,7 @@ fi
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
 # --------------------------------------------------------------
 
-# Injeção Manual do build.gradle
+# Injeção Manual do build.gradle (BIOMETRIA COMPLETAMENTE REMOVIDA)
 log_warn "Sincronizando configuracao estrutural do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
@@ -314,7 +320,6 @@ apply plugin: 'com.android.application'
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
     implementation "androidx.appcompat:appcompat:1.6.1"
-    implementation "androidx.biometric:biometric:1.1.0"
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
 }
@@ -385,35 +390,49 @@ gradle.projectsLoaded {
         pluginManager.withPlugin('com.android.application') {
             dependencies {
                 implementation "androidx.appcompat:appcompat:1.6.1"
-                implementation "androidx.biometric:biometric:1.1.0"
+                // Biometric removido deste escopo de carregamento secundario
             }
         }
     }
 }
 EOF
 
-# Injeção do AndroidManifest com os mapeamentos estáticos de carregamento do Qt 6
+# Injeção do AndroidManifest Híbrido (Estilo Bitcoin Core + Correções de Inicialização Qt6 no Android 15)
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.coin2x2.wallet">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+          package="com.coin2x2.wallet"
+          android:versionCode="202"
+          android:versionName="2.0.2"
+          android:installLocation="auto">
     
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:glEsVersion="0x00020000" android:required="true" />
+    <supports-screens android:largeScreens="true" android:normalScreens="true" android:anyDensity="true" android:smallScreens="true"/>
 
     <application 
+        android:hardwareAccelerated="true"
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
         android:label="2x2Coin Wallet" 
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@style/QtTheme" 
+        android:extractNativeLibs="true"
         android:allowBackup="true"
         android:hasCode="true">
         
         <activity 
             android:name="org.qtproject.qt.android.bindings.QtActivity" 
+            android:label="2x2Coin Wallet"
             android:exported="true" 
             android:launchMode="singleTop"
-            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation">
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density">
             
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -422,9 +441,13 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
             
             <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
             <meta-data android:name="android.app.arguments" android:value="" />
+            <meta-data android:name="android.app.background_running" android:value="true"/>
+            <meta-data android:name="android.app.auto_screen_scale_factor" android:value="true"/>
+            
+            <meta-data android:name="android.app.bundle_local_qt_libs" android:value="1"/>
+            <meta-data android:name="android.app.use_local_qt_libs" android:value="1"/>
             <meta-data android:name="android.app.extract_android_style" android:value="minimal" />
             <meta-data android:name="android.app.init_classes" android:value="org.qtproject.qt.android.QtNative" />
-            
             <meta-data android:name="android.app.plugins" android:value="plugins_platforms_android_libqandroid.so" />
         </activity>
     </application>
