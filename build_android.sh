@@ -237,8 +237,31 @@ log_info "Executando androiddeployqt estrutural..."
 # Cria rigorosamente a árvore de diretórios oficial do Android Gradle Plugin
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
+mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 mkdir -p "$ABS_OUTPUT/assets"
+
+# --- MIGRAÇÃO E GARANTIA DE RECURSOS DO QT (Sanando erro do AAPT) ---
+# Se o androiddeployqt gerou uma pasta 'res' na raiz do build, movemos o conteúdo para src/main/res
+if [ -d "$ABS_OUTPUT/res" ]; then
+    log_warn "Mesclando recursos nativos do gerador Qt para a arvore Gradle..."
+    cp -r "$ABS_OUTPUT/res/"* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
+fi
+
+# Criamos um Fallback Absoluto para o drawable/icon usando formato Vetorial XML puro.
+# Isso garante que mesmo se o PNG do Qt sumir, o AAPT compila com sucesso criando um ícone azul estável.
+cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/icon.xml"
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FF0055FF"
+      android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,13H7v-2h5V6l5,6 -5,6v-5z"/>
+</vector>
+EOF
+# ---------------------------------------------------------------------
 
 # Estilos básicos sem barra nativa para evitar conflito com renderização de GPU do Qt
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
@@ -317,7 +340,7 @@ android {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
-            res.srcDirs = ['src/main/res', 'res']
+            res.srcDirs = ['src/main/res']
             assets.srcDirs = ['src/main/assets']
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
@@ -349,7 +372,7 @@ android {
 }
 EOF
 
-# Geração do AndroidManifest Híbrido Estrito (Ajustado para usar o ícone embutido padrão do Qt)
+# Geração do AndroidManifest Híbrido Estrito
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Gerando manifesto com herança de ciclo gráfico ativo..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
