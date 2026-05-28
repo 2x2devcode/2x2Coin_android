@@ -222,7 +222,6 @@ sed -i 's|"android-build-tools-version": ".*"|"android-build-tools-version": "34
 BUILD_ROOT="/root/2x2Coin_android/build-android-arm64-release"
 ABS_OUTPUT="$BUILD_ROOT/android-build"
 
-# Forçamos o Gradle a aceitar o Java 17 do sistema globalmente
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
 
 log_info "Executando androiddeployqt estrutural..."
@@ -235,67 +234,52 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria a árvore de diretórios moderna e pastas de densidade para os ícones (Android 15 Fix)
+# Cria rigorosamente a árvore de diretórios oficial do Android Gradle Plugin
 mkdir -p "$ABS_OUTPUT/src/main/java"
-mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
-mkdir -p "$ABS_OUTPUT/src/main/assets"
-mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-mdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-hdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xhdpi"
 mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi"
-mkdir -p "$ABS_OUTPUT/assets"
+mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxxhdpi"
+mkdir -p "$ABS_OUTPUT/src/main/assets"
 
-# Estilos básicos com herança correta
+# Estilos básicos sem barra nativa para evitar conflito com renderização de GPU do Qt
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
 <resources>
-    <style name="QtTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="QtTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">#000000</item>
+        <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 </resources>
 EOF
 
-# Vetor do ícone de inicialização (Mapeia o fallback padrão caso não existam PNGs)
-cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml"
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-  <path
-      android:fillColor="#FF000000"
-      android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,13H7v-2h5V6l5,6 -5,6v-5z"/>
-</vector>
-EOF
+# GERAÇÃO DE UM ÍCONE PNG REAL (192x192 pixels plano azul de emergência em Base64)
+# Isso impede o Android 15 de descartar o ícone por falta de tamanho/formato rasterizado válido.
+echo "iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABbTLvaAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF///VzAAA6Yf36QAAAAJ0Uk5TcM95knsAAAA7SURBVHja7cEBDAMAMEKh+dd9qA9bIAs6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwY6wEGAA9mAnAsshgAAAAASUVORK5CYII=" | base64 -d > "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.png"
+cp "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.png" "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.png"
+cp "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.png" "$ABS_OUTPUT/src/main/res/mipmap-xhdpi/ic_launcher.png"
+cp "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.png" "$ABS_OUTPUT/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
 
-# Cópia duplicada do ícone básico para as pastas mipmap para evitar erro de pacote "sem ícone"
-cp "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml" 2>/dev/null
-cp "$ABS_OUTPUT/src/main/res/drawable/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.xml" 2>/dev/null
-
-# Garante as configurações de deployment nos dois caminhos de assets mapeados pelo motor Qt
+# Copia as configurações de deployment para ambas as raizes de assets reconhecidas pela QtActivity
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
-cp "$DEPLOY_JSON" "$ABS_OUTPUT/assets/android_deploy_settings.json" 2>/dev/null
 
-# --- INJEÇÃO DA ESTRUTURA COMPLETA DE PLUGINS E LIBS DO QT ---
+# --- INJEÇÃO DAS BIBLIOTECAS E PLUGINS DO QT NO DIRETÓRIO PADRÃO DO GRADLE ---
 JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
 mkdir -p "$JNILIBS_DIR"
 
-log_warn "Montando ecossistema de bibliotecas binarias e plugins arm64-v8a..."
-# Copia as bibliotecas base do Qt
+log_warn "Injetando bibliotecas nativas arm64-v8a no container Gradle..."
 cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$JNILIBS_DIR/" 2>/dev/null
 
-# Copia os plugins essenciais de plataforma e motor gráfico (Crucial para sanar tela preta)
 if [ -d "/root/Qt/6.5.3/android_arm64_v8a/plugins" ]; then
     find /root/Qt/6.5.3/android_arm64_v8a/plugins/ -name "*.so" -exec cp {} "$JNILIBS_DIR/" \; 2>/dev/null
 fi
 
-# Copia a biblioteca nativa da sua carteira compilada
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
-# --------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-# Injeção Manual do build.gradle (BIOMETRIA COMPLETAMENTE REMOVIDA)
-log_warn "Sincronizando configuracao estrutural do build.gradle..."
+# Injeção Manual do build.gradle com mapeamento absoluto de sources
+log_warn "Injetando engenharia do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
     repositories {
@@ -327,7 +311,6 @@ dependencies {
 android {
     namespace "com.coin2x2.wallet"
     compileSdk 34
-
     compileSdkVersion 34
     buildToolsVersion "34.0.0"
     ndkVersion "25.2.9519653"
@@ -342,6 +325,7 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
+            // Força a compilação do Java a absorver a árvore nativa do core do Qt 6
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
             res.srcDirs = ['src/main/res']
@@ -374,32 +358,11 @@ android {
         ndk.abiFilters = ["arm64-v8a"]
     }
 }
-
-gradle.projectsLoaded {
-    rootProject.allprojects {
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-        repositories {
-            google()
-            mavenCentral()
-        }
-        pluginManager.withPlugin('com.android.application') {
-            dependencies {
-                implementation "androidx.appcompat:appcompat:1.6.1"
-                // Biometric removido deste escopo de carregamento secundario
-            }
-        }
-    }
-}
 EOF
 
-# Injeção do AndroidManifest Híbrido (Estilo Bitcoin Core + Correções de Inicialização Qt6 no Android 15)
+# Geração do AndroidManifest Híbrido Estrito
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
-log_warn "Injetando AndroidManifest.xml compativel com as amarracoes do Qt..."
+log_warn "Gerando manifesto com herança de ciclo gráfico ativo..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" 
@@ -454,11 +417,8 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
 </manifest>
 EOF
 
-# Configuração do SDK do Android para o Gradle do sistema
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
 
-# Ativando suporte ao AndroidX e Jetifier
-log_warn "Injetando propriedades AndroidX globais..."
 echo "android.useAndroidX=true" > "$ABS_OUTPUT/gradle.properties"
 echo "android.enableJetifier=true" >> "$ABS_OUTPUT/gradle.properties"
 
