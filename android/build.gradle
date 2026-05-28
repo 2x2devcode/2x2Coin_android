@@ -3,9 +3,7 @@ buildscript {
         google()
         mavenCentral()
     }
-
     dependencies {
-        // Unica funcao do buildscript: carregar o plugin do Android
         classpath 'com.android.tools.build:gradle:8.2.2'
     }
 }
@@ -13,18 +11,15 @@ buildscript {
 repositories {
     google()
     mavenCentral()
-    // Aponta para as dependências locais internas do Qt no servidor
     maven { url "/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency" }
 }
 
 apply plugin: 'com.android.application'
 
-// Aqui ficam as dependências reais que vão para dentro do seu APK!
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
-
-    # A linha do androidx.biometric foi removida com sucesso daqui.
-
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    
     // Força o Gradle a embutir todas as classes e JARs nativos do Qt Core no APK
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
@@ -37,15 +32,16 @@ android {
     buildToolsVersion "34.0.0"
     ndkVersion "25.2.9519653"
 
-    // Mantém a compatibilidade com o carregamento do binário .so no Android 15
-    packagingOptions.jniLibs.useLegacyPackaging true
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+            pickFirsts += ['**/*.so']
+        }
+    }
 
     sourceSets {
         main {
-            // Aponta corretamente para o arquivo modificado dentro da arvore main
             manifest.srcFile 'src/main/AndroidManifest.xml'
-
-            // Injeção estrita dos caminhos das classes JAVA do Qt de forma estática
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
             res.srcDirs = ['src/main/res']
@@ -90,11 +86,6 @@ gradle.projectsLoaded {
         repositories {
             google()
             mavenCentral()
-        }
-        pluginManager.withPlugin('com.android.application') {
-            dependencies {
-                # Injeção automática de biometria de subprojetos removida.
-            }
         }
     }
 }
