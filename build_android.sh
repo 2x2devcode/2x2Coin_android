@@ -240,6 +240,10 @@ mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
+mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-mdpi"
+mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-hdpi"
+mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xhdpi"
+mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi"
 
 # Estilos básicos com herança correta
 cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
