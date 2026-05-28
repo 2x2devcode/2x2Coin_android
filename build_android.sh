@@ -402,14 +402,15 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
             
             <meta-data android:name="android.app.lib_name" android:value="2x2coin-wallet_arm64-v8a" />
             <meta-data android:name="android.app.arguments" android:value="" />
-            <meta-data android:name="android.app.background_running" android:value="true"/>
+            <meta-data android:name="android.app.background_running" android:value="false"/>
             <meta-data android:name="android.app.auto_screen_scale_factor" android:value="true"/>
             
             <meta-data android:name="android.app.bundle_local_qt_libs" android:value="1"/>
             <meta-data android:name="android.app.use_local_qt_libs" android:value="1"/>
             <meta-data android:name="android.app.extract_android_style" android:value="minimal" />
             <meta-data android:name="android.app.init_classes" android:value="org.qtproject.qt.android.QtNative" />
-            <meta-data android:name="android.app.plugins" android:value="plugins_platforms_android_libqandroid.so" />
+            
+            <meta-data android:name="android.app.plugins" android:value="plugins_platforms_qtforandroid_arm64-v8a" />
         </activity>
     </application>
 </manifest>
