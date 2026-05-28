@@ -98,10 +98,13 @@ int main(int argc, char *argv[])
 
     engine.load(url);
 
-    // Iniciar conexão com a rede 2X2Coin
-    QTimer::singleShot(1000, [&controller]() {
-        controller.connectToNetwork();
-    });
+    const QUrl url(u"qrc:/qml/main.qml"_s );
+QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+    &app, [url](QObject *obj, const QUrl &objUrl) {
+        if (!obj && url == objUrl)
+            QCoreApplication::exit(-1);
+    }, Qt::QueuedConnection);
+engine.load(url);
 
     qDebug() << "2X2Coin Wallet iniciado com sucesso";
     return app.exec();
