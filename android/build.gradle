@@ -23,12 +23,11 @@ apply plugin: 'com.android.application'
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 
-    // Versão estável do biometric encontrada facilmente nos servidores globais
-    implementation "androidx.biometric:biometric:1.1.0"
+    # A linha do androidx.biometric foi removida com sucesso daqui.
 
     // Força o Gradle a embutir todas as classes e JARs nativos do Qt Core no APK
     implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
-    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '>
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '*.jar'])
 }
 
 android {
@@ -38,22 +37,20 @@ android {
     buildToolsVersion "34.0.0"
     ndkVersion "25.2.9519653"
 
-    // Mantém a compatibilidade com o carregamento do binário .so
+    // Mantém a compatibilidade com o carregamento do binário .so no Android 15
     packagingOptions.jniLibs.useLegacyPackaging true
 
     sourceSets {
         main {
-            // Se o manifesto estiver na pasta src/main/, mude para 'src/main/AndroidManifest.xml'
-            manifest.srcFile 'AndroidManifest.xml'
+            // Aponta corretamente para o arquivo modificado dentro da arvore main
+            manifest.srcFile 'src/main/AndroidManifest.xml'
 
             // Injeção estrita dos caminhos das classes JAVA do Qt de forma estática
-            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'java']
-            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'aidl']
-            res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'res']
-            resources.srcDirs = ['resources']
-            renderscript.srcDirs = ['src']
-            assets.srcDirs = ['assets']
-            jniLibs.srcDirs = ['libs']
+            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
+            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['src/main/assets']
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 
@@ -96,7 +93,7 @@ gradle.projectsLoaded {
         }
         pluginManager.withPlugin('com.android.application') {
             dependencies {
-                implementation "androidx.biometric:biometric:1.1.0"
+                # Injeção automática de biometria de subprojetos removida.
             }
         }
     }
