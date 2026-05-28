@@ -41,8 +41,9 @@ void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
 
 int main(int argc, char *argv[])
 {
-    // Configurações de alto DPI para Android
+    // Configurações de DPI e logs
     qInstallMessageHandler(myMessageHandler);
+
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
-    // Metadados da aplicação
+    // Metadados
     app.setApplicationName("2X2Coin Wallet");
     app.setApplicationVersion("2.0.2");
     app.setOrganizationName("2x2coin.com");
@@ -63,13 +64,13 @@ int main(int argc, char *argv[])
     qDebug() << "  Consenso: PoW (até bloco 110.000) + PoS";
     qDebug() << "=================================================";
 
-    // Configurar estilo Qt Quick Controls 2
+    // Estilo Material Design
     QQuickStyle::setStyle("Material");
 
-    // Inicializar parâmetros da rede
+    // Inicializar lógica da moeda
     Coin2x2::ChainParams::instance().setNetwork(Coin2x2::ChainParams::MAIN);
 
-    // Criar controlador principal (singleton para QML)
+    // Controladores
     Coin2x2::ApplicationController controller;
     Coin2x2::ApplicationController::setInstance(&controller);
     Coin2x2::ApplicationController::registerQmlTypes();
@@ -77,17 +78,13 @@ int main(int argc, char *argv[])
     Coin2x2::WalletController walletController;
     Coin2x2::WalletController::setInstance(&walletController);
     Coin2x2::WalletController::registerQmlTypes();
-    walletController.bindManagers(
-        &Coin2x2::WalletManager::instance(),
-        &Coin2x2::NetworkManager::instance());
 
     QQmlApplicationEngine engine;
 
-    controller.initialize(&engine);
-    engine.rootContext()->setContextProperty("walletCtrl", &walletController);
-
-    // Carregar QML principal
+    // DEFINIÇÃO ÚNICA DA URL (Corrigida para compatibilidade)
     const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+
+    // Conexão de segurança para detectar falha no carregamento do QML
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
         &app, [url](QObject *obj, const QUrl &objUrl) {
             if (!obj && url == objUrl)
@@ -95,14 +92,6 @@ int main(int argc, char *argv[])
         }, Qt::QueuedConnection);
 
     engine.load(url);
-
-    const QUrl url(u"qrc:/qml/main.qml"_s );
-QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-    &app, [url](QObject *obj, const QUrl &objUrl) {
-        if (!obj && url == objUrl)
-            QCoreApplication::exit(-1);
-    }, Qt::QueuedConnection);
-engine.load(url);
 
     qDebug() << "2X2Coin Wallet iniciado com sucesso";
     return app.exec();
