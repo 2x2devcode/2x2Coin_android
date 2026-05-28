@@ -3,91 +3,101 @@ buildscript {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
+        // Unica funcao do buildscript: carregar o plugin do Android
+        classpath 'com.android.tools.build:gradle:8.2.2'
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
+repositories {
+    google()
+    mavenCentral()
+    // Aponta para as dependências locais internas do Qt no servidor
+    maven { url "/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency" }
 }
 
 apply plugin: 'com.android.application'
 
+// Aqui ficam as dependências reais que vão para dentro do seu APK!
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+
+    // Versão estável do biometric encontrada facilmente nos servidores globais
+    implementation "androidx.biometric:biometric:1.1.0"
+
+    // Força o Gradle a embutir todas as classes e JARs nativos do Qt Core no APK
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/jar', include: ['*.jar'])
+    implementation fileTree(dir: '/root/Qt/6.5.3/android_arm64_v8a/src/android/dependency', include: ['*.aar', '>
+}
+
 android {
     namespace "com.coin2x2.wallet"
-     compileSdkVersion 35
-    buildToolsVersion "35.0.0"
 
-    
-    buildFeatures {
-        buildConfig true
-    }
-    
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-    
+    compileSdkVersion 34
+    buildToolsVersion "34.0.0"
+    ndkVersion "25.2.9519653"
+
+    // Mantém a compatibilidade com o carregamento do binário .so
+    packagingOptions.jniLibs.useLegacyPackaging true
+
     sourceSets {
         main {
+            // Se o manifesto estiver na pasta src/main/, mude para 'src/main/AndroidManifest.xml'
             manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = ['src/main/java']
-            res.srcDirs = ['res']
+
+            // Injeção estrita dos caminhos das classes JAVA do Qt de forma estática
+            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'java']
+            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'aidl']
+            res.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/res', 'res']
+            resources.srcDirs = ['resources']
+            renderscript.srcDirs = ['src']
             assets.srcDirs = ['assets']
             jniLibs.srcDirs = ['libs']
         }
     }
 
-    defaultConfig {
-        applicationId "com.coin2x2.wallet"
-        minSdkVersion 23
-        targetSdkVersion 35
-        versionCode 202
-        versionName "2.0.2"
-
-        ndk {
-            abiFilters "arm64-v8a"
-        }
-
-        buildConfigField "String", "COIN_NAME", '"2x2Coin"'
-        buildConfigField "String", "COIN_TICKER", '"2X2"'
-        buildConfigField "int", "COIN_DEFAULT_PORT", "15190"
-    }
-
-    signingConfigs {
-        release {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
-    }
-
-    buildTypes {
-    release {
-            minifyEnabled false
-            shrinkResources false
-            signingConfig signingConfigs.release
-        }
-        debug {
-            minifyEnabled false
-            shrinkResources false
-        }
+    tasks.withType(JavaCompile) {
+        options.incremental = true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    aaptOptions {
+        noCompress 'rcc'
+    }
+
+    defaultConfig {
+        resConfig "en"
+        minSdkVersion 26
+        targetSdkVersion 34
+        ndk.abiFilters = ["arm64-v8a"]
+    }
 }
 
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.biometric:biometric:1.1.0'
+gradle.projectsLoaded {
+    rootProject.allprojects {
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        repositories {
+            google()
+            mavenCentral()
+        }
+        pluginManager.withPlugin('com.android.application') {
+            dependencies {
+                implementation "androidx.biometric:biometric:1.1.0"
+            }
+        }
+    }
 }
