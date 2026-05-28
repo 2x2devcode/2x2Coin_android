@@ -237,10 +237,6 @@ log_info "Executando androiddeployqt estrutural..."
 # Cria rigorosamente a árvore de diretórios oficial do Android Gradle Plugin
 mkdir -p "$ABS_OUTPUT/src/main/java"
 mkdir -p "$ABS_OUTPUT/src/main/res/values"
-mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-hdpi"
-mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xhdpi"
-mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi"
-mkdir -p "$ABS_OUTPUT/src/main/res/mipmap-xxxhdpi"
 mkdir -p "$ABS_OUTPUT/src/main/assets"
 mkdir -p "$ABS_OUTPUT/assets"
 
@@ -254,24 +250,6 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
     </style>
 </resources>
 EOF
-
-# CORREÇÃO DO ÍCONE: Copia os ícones padrão funcionais do próprio template do Qt
-# Isso garante arquivos PNGs estruturalmente válidos para o AAPT extrair sem falhas.
-QT_TEMPLATE_RES="/root/Qt/6.5.3/android_arm64_v8a/src/android/templates/res"
-if [ -d "$QT_TEMPLATE_RES" ]; then
-    cp "$QT_TEMPLATE_RES"/mipmap-hdpi/qt_logo.png "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.png" 2>/dev/null
-    cp "$QT_TEMPLATE_RES"/mipmap-xhdpi/qt_logo.png "$ABS_OUTPUT/src/main/res/mipmap-xhdpi/ic_launcher.png" 2>/dev/null
-    cp "$QT_TEMPLATE_RES"/mipmap-xxhdpi/qt_logo.png "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.png" 2>/dev/null
-    cp "$QT_TEMPLATE_RES"/mipmap-xxxhdpi/qt_logo.png "$ABS_OUTPUT/src/main/res/mipmap-xxxhdpi/ic_launcher.png" 2>/dev/null
-else
-    # Fallback caso não ache o template: cria um XML simples mapeado como drawable, evitando o AAPT PNG bug
-    cat << 'EOF' > "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml"
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FF0000FF" android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2z"/></vector>
-EOF
-    cp "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-xhdpi/ic_launcher.xml"
-    cp "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-xxhdpi/ic_launcher.xml"
-    cp "$ABS_OUTPUT/src/main/res/mipmap-hdpi/ic_launcher.xml" "$ABS_OUTPUT/src/main/res/mipmap-xxxhdpi/ic_launcher.xml"
-fi
 
 # Copia as configurações de deployment para ambas as raizes de assets reconhecidas pela QtActivity
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
@@ -339,7 +317,7 @@ android {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
-            res.srcDirs = ['src/main/res']
+            res.srcDirs = ['src/main/res', 'res']
             assets.srcDirs = ['src/main/assets']
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
@@ -371,7 +349,7 @@ android {
 }
 EOF
 
-# Geração do AndroidManifest Híbrido Estrito
+# Geração do AndroidManifest Híbrido Estrito (Ajustado para usar o ícone embutido padrão do Qt)
 GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
 log_warn "Gerando manifesto com herança de ciclo gráfico ativo..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -393,7 +371,7 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
         android:hardwareAccelerated="true"
         android:name="org.qtproject.qt.android.bindings.QtApplication"
         android:label="2x2Coin Wallet" 
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/icon"
         android:theme="@style/QtTheme" 
         android:extractNativeLibs="true"
         android:allowBackup="true"
@@ -455,6 +433,7 @@ else
 fi
 
 log_success "Fase Gradle concluida com sucesso!"
+
 # 9. APK Signing and Alignment
 log_info "9 of 10 Checking signing dependencies..."
 check_and_install() {
