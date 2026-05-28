@@ -234,23 +234,14 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria rigorosamente a árvore de diretórios oficial do Android Gradle Plugin
-mkdir -p "$ABS_OUTPUT/src/main/java"
-mkdir -p "$ABS_OUTPUT/src/main/res/values"
-mkdir -p "$ABS_OUTPUT/src/main/res/drawable"
-mkdir -p "$ABS_OUTPUT/src/main/assets"
+# Cria rigorosamente a árvore de diretórios nativa que o Qt e o Gradle mapeiam em conjunto
+mkdir -p "$ABS_OUTPUT/res/values"
+mkdir -p "$ABS_OUTPUT/res/drawable"
 mkdir -p "$ABS_OUTPUT/assets"
+mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# --- MIGRAÇÃO E GARANTIA DE RECURSOS DO QT (Sanando erro do AAPT) ---
-# Se o androiddeployqt gerou uma pasta 'res' na raiz do build, movemos o conteúdo para src/main/res
-if [ -d "$ABS_OUTPUT/res" ]; then
-    log_warn "Mesclando recursos nativos do gerador Qt para a arvore Gradle..."
-    cp -r "$ABS_OUTPUT/res/"* "$ABS_OUTPUT/src/main/res/" 2>/dev/null
-fi
-
-# Criamos um Fallback Absoluto para o drawable/icon usando formato Vetorial XML puro.
-# Isso garante que mesmo se o PNG do Qt sumir, o AAPT compila com sucesso criando um ícone azul estável.
-cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/icon.xml"
+# Cria o arquivo de Ícone Vetorial diretamente na pasta nativa lida pelo AAPT
+cat << 'EOF' > "$ABS_OUTPUT/res/drawable/icon.xml"
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
     android:height="48dp"
@@ -261,10 +252,9 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/drawable/icon.xml"
       android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,13H7v-2h5V6l5,6 -5,6v-5z"/>
 </vector>
 EOF
-# ---------------------------------------------------------------------
 
-# Estilos básicos sem barra nativa para evitar conflito com renderização de GPU do Qt
-cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
+# Estilos sem barra nativa para dar total controle ao motor gráfico QML
+cat << 'EOF' > "$ABS_OUTPUT/res/values/styles.xml"
 <resources>
     <style name="QtTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">#000000</item>
@@ -274,24 +264,21 @@ cat << 'EOF' > "$ABS_OUTPUT/src/main/res/values/styles.xml"
 </resources>
 EOF
 
-# Copia as configurações de deployment para ambas as raizes de assets reconhecidas pela QtActivity
-cp "$DEPLOY_JSON" "$ABS_OUTPUT/src/main/assets/android_deploy_settings.json" 2>/dev/null
+# Copia as configurações de deployment para a raiz correta de assets que a QtActivity vasculha
+cp "$DEPLOY_JSON" "$ABS_OUTPUT/assets/android_deploy_settings.json" 2>/dev/null
 
-# --- INJEÇÃO DAS BIBLIOTECAS E PLUGINS DO QT NO DIRETÓRIO PADRÃO DO GRADLE ---
-JNILIBS_DIR="$ABS_OUTPUT/src/main/jniLibs/arm64-v8a"
-mkdir -p "$JNILIBS_DIR"
-
-log_warn "Injetando bibliotecas nativas arm64-v8a no container Gradle..."
-cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$JNILIBS_DIR/" 2>/dev/null
+# --- INJEÇÃO DE BIBLIOTECAS E PLUGINS DIRETAMENTE EM LIBS (Padrão Antigo/Seguro do Qt) ---
+log_warn "Injetando bibliotecas nativas arm64-v8a no container de libs..."
+cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$ABS_OUTPUT/libs/arm64-v8a/" 2>/dev/null
 
 if [ -d "/root/Qt/6.5.3/android_arm64_v8a/plugins" ]; then
-    find /root/Qt/6.5.3/android_arm64_v8a/plugins/ -name "*.so" -exec cp {} "$JNILIBS_DIR/" \; 2>/dev/null
+    find /root/Qt/6.5.3/android_arm64_v8a/plugins/ -name "*.so" -exec cp {} "$ABS_OUTPUT/libs/arm64-v8a/" \; 2>/dev/null
 fi
 
-cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$JNILIBS_DIR/" 2>/dev/null
+cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/" 2>/dev/null
 # -----------------------------------------------------------------------------
 
-# Injeção Manual do build.gradle com mapeamento absoluto de sources
+# Injeção do build.gradle mapeando a raiz do projeto (Estrutura Real do Qt)
 log_warn "Injetando engenharia do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
@@ -337,12 +324,13 @@ android {
 
     sourceSets {
         main {
-            manifest.srcFile 'src/main/AndroidManifest.xml'
-            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/java']
-            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src/main/aidl']
-            res.srcDirs = ['src/main/res']
-            assets.srcDirs = ['src/main/assets']
-            jniLibs.srcDirs = ['src/main/jniLibs']
+            // Sincroniza o Gradle com a raiz real gerada pelo Qt Creator / androiddeployqt
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'java']
+            aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'aidl']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
         }
     }
 
@@ -372,8 +360,8 @@ android {
 }
 EOF
 
-# Geração do AndroidManifest Híbrido Estrito
-GENERATED_MANIFEST="$ABS_OUTPUT/src/main/AndroidManifest.xml"
+# Geração do AndroidManifest Híbrido Estrito na Raiz do Build
+GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 log_warn "Gerando manifesto com herança de ciclo gráfico ativo..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
 <?xml version="1.0" encoding="utf-8"?>
