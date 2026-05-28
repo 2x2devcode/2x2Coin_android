@@ -234,13 +234,13 @@ log_info "Executando androiddeployqt estrutural..."
     --release \
     --no-build >> "../$LOG_FILE" 2>&1
 
-# Cria rigorosamente a árvore de diretórios nativa que o Qt e o Gradle mapeiam em conjunto
+# 1. CRIAÇÃO DAS PASTAS NATIVAS REAIS (Mapeadas no seu build.gradle)
 mkdir -p "$ABS_OUTPUT/res/values"
 mkdir -p "$ABS_OUTPUT/res/drawable"
 mkdir -p "$ABS_OUTPUT/assets"
 mkdir -p "$ABS_OUTPUT/libs/arm64-v8a"
 
-# Cria o arquivo de Ícone Vetorial diretamente na pasta nativa lida pelo AAPT
+# 2. INJEÇÃO DO ÍCONE VETORIAL NA RAIZ DO PROJETO (res/drawable/icon.xml)
 cat << 'EOF' > "$ABS_OUTPUT/res/drawable/icon.xml"
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
@@ -253,7 +253,7 @@ cat << 'EOF' > "$ABS_OUTPUT/res/drawable/icon.xml"
 </vector>
 EOF
 
-# Estilos sem barra nativa para dar total controle ao motor gráfico QML
+# 3. CRIAÇÃO DO ARQUIVO DE ESTILOS GRÁFICOS
 cat << 'EOF' > "$ABS_OUTPUT/res/values/styles.xml"
 <resources>
     <style name="QtTheme" parent="Theme.AppCompat.NoActionBar">
@@ -264,10 +264,10 @@ cat << 'EOF' > "$ABS_OUTPUT/res/values/styles.xml"
 </resources>
 EOF
 
-# Copia as configurações de deployment para a raiz correta de assets que a QtActivity vasculha
+# Copia as configurações de deployment para a pasta correta que o motor Qt rastreia
 cp "$DEPLOY_JSON" "$ABS_OUTPUT/assets/android_deploy_settings.json" 2>/dev/null
 
-# --- INJEÇÃO DE BIBLIOTECAS E PLUGINS DIRETAMENTE EM LIBS (Padrão Antigo/Seguro do Qt) ---
+# 4. INJEÇÃO DE BIBLIOTECAS NATIVAS E PLUGINS DO QT
 log_warn "Injetando bibliotecas nativas arm64-v8a no container de libs..."
 cp /root/Qt/6.5.3/android_arm64_v8a/lib/*.so "$ABS_OUTPUT/libs/arm64-v8a/" 2>/dev/null
 
@@ -276,9 +276,8 @@ if [ -d "/root/Qt/6.5.3/android_arm64_v8a/plugins" ]; then
 fi
 
 cp "$BUILD_ROOT/lib2x2coin-wallet_arm64-v8a.so" "$ABS_OUTPUT/libs/arm64-v8a/" 2>/dev/null
-# -----------------------------------------------------------------------------
 
-# Injeção do build.gradle mapeando a raiz do projeto (Estrutura Real do Qt)
+# 5. INJEÇÃO DO SCRIPT DE ENGENHARIA BUILD.GRADLE
 log_warn "Injetando engenharia do build.gradle..."
 cat << 'EOF' > "$ABS_OUTPUT/build.gradle"
 buildscript {
@@ -324,7 +323,6 @@ android {
 
     sourceSets {
         main {
-            // Sincroniza o Gradle com a raiz real gerada pelo Qt Creator / androiddeployqt
             manifest.srcFile 'AndroidManifest.xml'
             java.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'java']
             aidl.srcDirs = ['/root/Qt/6.5.3/android_arm64_v8a/src/android/java/src', 'src', 'aidl']
@@ -360,7 +358,7 @@ android {
 }
 EOF
 
-# Geração do AndroidManifest Híbrido Estrito na Raiz do Build
+# 6. GERAÇÃO DO ANDROIDMANIFEST HÍBRIDO NA RAIZ DO PROJETO
 GENERATED_MANIFEST="$ABS_OUTPUT/AndroidManifest.xml"
 log_warn "Gerando manifesto com herança de ciclo gráfico ativo..."
 cat << 'EOF' > "$GENERATED_MANIFEST"
@@ -417,11 +415,12 @@ cat << 'EOF' > "$GENERATED_MANIFEST"
 </manifest>
 EOF
 
+# 7. PROPRIEDADES FINAIS DO AMBIENTE GRADLE
 echo "sdk.dir=/root/android-sdk" > "$ABS_OUTPUT/local.properties"
-
 echo "android.useAndroidX=true" > "$ABS_OUTPUT/gradle.properties"
 echo "android.enableJetifier=true" >> "$ABS_OUTPUT/gradle.properties"
 
+# 8. SÓ AGORA DISPARAMOS O COMPILADOR COM TODOS OS ARQUIVOS INJETADOS NO LUGAR CORRETO
 log_info "Disparando compilacao com Gradle Global (Java 17)..."
 cd "$ABS_OUTPUT"
 
