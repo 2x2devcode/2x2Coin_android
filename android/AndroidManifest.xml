@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <application
-        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:name="org.qtproject.qt.android.binding.QtApplication"
         android:label="Coin2X2Wallet"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/QtTheme"
@@ -21,7 +21,7 @@
         android:hasCode="true">
 
         <activity
-            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:name="org.qtproject.qt.android.binding.QtActivity"
             android:label="Coin2X2Wallet"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
