@@ -5,18 +5,32 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
     id: lockScreen
     signal unlocked()
 
+    AppTheme { id: theme }
+
     property int failedAttempts: 0
     property bool isLocked: failedAttempts >= 5
 
     background: Rectangle {
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#0F0F1A" }
-            GradientStop { position: 1.0; color: "#1A1A2E" }
+        color: theme.background
+        Rectangle {
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width * 1.1
+            height: 220
+            radius: 110
+            y: -120
+            opacity: 0.22
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: theme.electricBlue }
+                GradientStop { position: 1.0; color: theme.neonGreen }
+            }
         }
     }
 
@@ -36,19 +50,17 @@ Page {
                 Layout.alignment: Qt.AlignHCenter
                 width: 90
                 height: 90
-                radius: 45
-                gradient: Gradient {
-                    orientation: Gradient.Diagonal
-                    GradientStop { position: 0.0; color: "#00D4AA" }
-                    GradientStop { position: 1.0; color: "#0088FF" }
-                }
+                radius: 24
+                color: theme.surface
+                border.color: theme.neonGreen
+                border.width: 1
 
                 Label {
                     anchors.centerIn: parent
                     text: "2X2"
                     font.pixelSize: 26
                     font.bold: true
-                    color: "#FFFFFF"
+                    color: theme.neonGreen
                 }
             }
 
@@ -56,14 +68,14 @@ Page {
                 text: "2X2Coin Wallet"
                 font.pixelSize: 24
                 font.bold: true
-                color: "#FFFFFF"
+                color: theme.textPrimary
                 Layout.alignment: Qt.AlignHCenter
             }
 
             Label {
-                text: "🔒 Carteira Bloqueada"
+                text: "Carteira Bloqueada"
                 font.pixelSize: 14
-                color: "#8899AA"
+                color: theme.textSecondary
                 Layout.alignment: Qt.AlignHCenter
             }
         }
@@ -80,17 +92,18 @@ Page {
                 Layout.fillWidth: true
                 placeholderText: "Digite sua senha"
                 echoMode: TextInput.Password
-                color: "#FFFFFF"
+                color: theme.textPrimary
+                placeholderTextColor: theme.textMuted
                 font.pixelSize: 18
                 horizontalAlignment: Text.AlignHCenter
                 enabled: !isLocked
 
                 background: Rectangle {
                     radius: 12
-                    color: "#1A1A2E"
+                    color: theme.surface
                     border.color: {
-                        if (lockScreen.failedAttempts > 0) return "#FF5252"
-                        return passwordField.activeFocus ? "#00D4AA" : "#333355"
+                        if (lockScreen.failedAttempts > 0) return theme.danger
+                        return passwordField.activeFocus ? theme.electricBlue : theme.outline
                     }
                     border.width: passwordField.activeFocus ? 2 : 1
                 }
@@ -107,7 +120,7 @@ Page {
                     return ""
                 }
                 font.pixelSize: 12
-                color: "#FF5252"
+                color: theme.danger
                 Layout.alignment: Qt.AlignHCenter
                 visible: failedAttempts > 0
             }
@@ -117,12 +130,12 @@ Page {
                 id: unlockButton
                 Layout.fillWidth: true
                 height: 56
-                text: isLocked ? "🔒 Bloqueado" : "🔓  Desbloquear"
+                text: isLocked ? "Bloqueado" : "Desbloquear"
                 font.pixelSize: 16
                 font.bold: true
                 enabled: !isLocked && passwordField.text.length > 0
-                Material.background: enabled ? "#00D4AA" : "#333355"
-                Material.foreground: enabled ? "#0F0F1A" : "#666677"
+                Material.background: enabled ? theme.neonGreen : theme.slate
+                Material.foreground: enabled ? theme.onAccent : theme.textMuted
 
                 onClicked: {
                     if (app.unlockWallet(passwordField.text)) {
@@ -142,9 +155,9 @@ Page {
             Button {
                 Layout.fillWidth: true
                 height: 48
-                text: "👆  Usar Biometria"
+                text: "Usar Biometria"
                 flat: true
-                Material.foreground: "#00D4AA"
+                Material.foreground: theme.electricBlue
                 visible: app.isBiometricAvailable()
                 onClicked: app.authenticateWithBiometric()
             }
@@ -156,7 +169,7 @@ Page {
         Label {
             text: "Esqueceu a senha? Restaure com sua frase de recuperação"
             font.pixelSize: 12
-            color: "#555566"
+            color: theme.textMuted
             horizontalAlignment: Text.AlignHCenter
             Layout.fillWidth: true
             Layout.bottomMargin: 16

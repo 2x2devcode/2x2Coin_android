@@ -11,48 +11,44 @@ Page {
     id: mainPage
     signal lockWallet()
 
+    AppTheme { id: theme }
+
     // Barra de navegação inferior
     footer: TabBar {
         id: tabBar
         background: Rectangle {
-            color: "#1A1A2E"
+            color: theme.backgroundRaised
             Rectangle {
                 anchors.top: parent.top
                 width: parent.width
                 height: 1
-                color: "#333355"
+                color: theme.outline
             }
         }
 
         TabButton {
-            text: "Visão Geral"
+            text: "Saldo"
             icon.source: "qrc:/assets/icons/home.svg"
-            icon.color: tabBar.currentIndex === 0 ? "#00D4AA" : "#888899"
-            Material.foreground: tabBar.currentIndex === 0 ? "#00D4AA" : "#888899"
+            icon.color: tabBar.currentIndex === 0 ? theme.neonGreen : theme.textMuted
+            Material.foreground: tabBar.currentIndex === 0 ? theme.neonGreen : theme.textMuted
         }
         TabButton {
             text: "Enviar"
             icon.source: "qrc:/assets/icons/send.svg"
-            icon.color: tabBar.currentIndex === 1 ? "#00D4AA" : "#888899"
-            Material.foreground: tabBar.currentIndex === 1 ? "#00D4AA" : "#888899"
+            icon.color: tabBar.currentIndex === 1 ? theme.neonGreen : theme.textMuted
+            Material.foreground: tabBar.currentIndex === 1 ? theme.neonGreen : theme.textMuted
         }
         TabButton {
             text: "Receber"
             icon.source: "qrc:/assets/icons/receive.svg"
-            icon.color: tabBar.currentIndex === 2 ? "#00D4AA" : "#888899"
-            Material.foreground: tabBar.currentIndex === 2 ? "#00D4AA" : "#888899"
+            icon.color: tabBar.currentIndex === 2 ? theme.neonGreen : theme.textMuted
+            Material.foreground: tabBar.currentIndex === 2 ? theme.neonGreen : theme.textMuted
         }
         TabButton {
-            text: "Histórico"
-            icon.source: "qrc:/assets/icons/history.svg"
-            icon.color: tabBar.currentIndex === 3 ? "#00D4AA" : "#888899"
-            Material.foreground: tabBar.currentIndex === 3 ? "#00D4AA" : "#888899"
-        }
-        TabButton {
-            text: "Config"
+            text: "Ajustes"
             icon.source: "qrc:/assets/icons/settings.svg"
-            icon.color: tabBar.currentIndex === 4 ? "#00D4AA" : "#888899"
-            Material.foreground: tabBar.currentIndex === 4 ? "#00D4AA" : "#888899"
+            icon.color: tabBar.currentIndex === 3 ? theme.neonGreen : theme.textMuted
+            Material.foreground: tabBar.currentIndex === 3 ? theme.neonGreen : theme.textMuted
         }
     }
 
@@ -62,7 +58,11 @@ Page {
         currentIndex: tabBar.currentIndex
 
         // Aba 1: Visão Geral (Overview)
-        OverviewTab {}
+        OverviewTab {
+            onOpenSend: tabBar.currentIndex = 1
+            onOpenReceive: tabBar.currentIndex = 2
+            onOpenSettings: tabBar.currentIndex = 3
+        }
 
         // Aba 2: Enviar
         SendTab {}
@@ -70,10 +70,7 @@ Page {
         // Aba 3: Receber
         ReceiveTab {}
 
-        // Aba 4: Histórico de Transações
-        HistoryTab {}
-
-        // Aba 5: Configurações
+        // Aba 4: Configurações
         SettingsTab {
             onLockWallet: mainPage.lockWallet()
         }

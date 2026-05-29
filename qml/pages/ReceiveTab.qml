@@ -1,5 +1,5 @@
 // Copyright (c) 2026 - 2X2Coin Project
-// Aba de recebimento de 2X2Coin com QR Code
+// Deposit screen with QR code and keypool address generation.
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
@@ -10,341 +10,231 @@ import "../components"
 Item {
     id: receiveTab
 
+    AppTheme { id: theme }
+    property string displayAddress: app.receiveAddress
+
     ScrollView {
         anchors.fill: parent
         contentWidth: parent.width
+        background: Rectangle { color: theme.background }
 
         ColumnLayout {
             width: parent.width
-            spacing: 0
+            spacing: 18
 
-            // Cabeçalho
             PageHeader {
-                title: "Receive 2X2Coin"
-                subtitle: "Compartilhe seu endereço"
+                title: "Receber / Depósitos"
+                subtitle: "Endereço público atual"
             }
 
-            ColumnLayout {
+            Rectangle {
                 Layout.fillWidth: true
-                Layout.margins: 16
-                spacing: 16
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                radius: theme.radiusLarge
+                color: theme.surface
+                border.color: theme.outline
+                implicitHeight: qrSection.implicitHeight + 34
 
-                // Card do QR Code
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 320
-                    radius: 20
-                    color: "#1A1A2E"
-                    border.color: "#333355"
-                    border.width: 1
+                ColumnLayout {
+                    id: qrSection
+                    anchors.fill: parent
+                    anchors.margins: 17
+                    spacing: 14
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 12
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: Math.min(receiveTab.width - 74, 286)
+                        Layout.preferredHeight: width
+                        radius: theme.radius
+                        color: "#FFFFFF"
 
-                        Label {
-                            text: "QR Code do Endereço"
-                            font.pixelSize: 14
-                            font.bold: true
-                            color: "#FFFFFF"
-                            Layout.alignment: Qt.AlignHCenter
-                        }
+                        Canvas {
+                            id: qrCanvas
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            antialiasing: false
 
-                        // QR Code gerado via canvas
-                        Rectangle {
-                            Layout.alignment: Qt.AlignHCenter
-                            width: 200
-                            height: 200
-                            color: "#FFFFFF"
-                            radius: 8
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                var addr = displayAddress && displayAddress.length > 0 ? displayAddress : "2x2coin"
+                                var cells = 29
+                                var cell = Math.floor(Math.min(width, height) / cells)
+                                var offsetX = Math.floor((width - cell * cells) / 2)
+                                var offsetY = Math.floor((height - cell * cells) / 2)
 
-                            // Placeholder para QR Code
-                            // Em produção: usar biblioteca QR como qzxing
-                            Canvas {
-                                id: qrCanvas
-                                anchors.fill: parent
-                                anchors.margins: 8
+                                ctx.fillStyle = "#FFFFFF"
+                                ctx.fillRect(0, 0, width, height)
 
-                                property string address: app.receiveAddress
+                                function module(x, y) {
+                                    ctx.fillStyle = "#05070B"
+                                    ctx.fillRect(offsetX + x * cell, offsetY + y * cell, cell, cell)
+                                }
 
-                                onAddressChanged: requestPaint()
-
-                                onPaint: {
-                                    var ctx = getContext("2d")
-                                    ctx.fillStyle = "#FFFFFF"
-                                    ctx.fillRect(0, 0, width, height)
-
-                                    // Desenhar padrão de QR simplificado (visual)
-                                    ctx.fillStyle = "#000000"
-
-                                    // Cantos do QR Code
-                                    var cornerSize = width * 0.25
-                                    // Canto superior esquerdo
-                                    ctx.fillRect(0, 0, cornerSize, cornerSize)
-                                    ctx.fillStyle = "#FFFFFF"
-                                    ctx.fillRect(4, 4, cornerSize - 8, cornerSize - 8)
-                                    ctx.fillStyle = "#000000"
-                                    ctx.fillRect(8, 8, cornerSize - 16, cornerSize - 16)
-
-                                    // Canto superior direito
-                                    ctx.fillStyle = "#000000"
-                                    ctx.fillRect(width - cornerSize, 0, cornerSize, cornerSize)
-                                    ctx.fillStyle = "#FFFFFF"
-                                    ctx.fillRect(width - cornerSize + 4, 4, cornerSize - 8, cornerSize - 8)
-                                    ctx.fillStyle = "#000000"
-                                    ctx.fillRect(width - cornerSize + 8, 8, cornerSize - 16, cornerSize - 16)
-
-                                    // Canto inferior esquerdo
-                                    ctx.fillStyle = "#000000"
-                                    ctx.fillRect(0, height - cornerSize, cornerSize, cornerSize)
-                                    ctx.fillStyle = "#FFFFFF"
-                                    ctx.fillRect(4, height - cornerSize + 4, cornerSize - 8, cornerSize - 8)
-                                    ctx.fillStyle = "#000000"
-                                    ctx.fillRect(8, height - cornerSize + 8, cornerSize - 16, cornerSize - 16)
-
-                                    // Padrão de dados central (visual)
-                                    ctx.fillStyle = "#000000"
-                                    var cellSize = 4
-                                    var dataArea = width - cornerSize * 2 - 16
-                                    var startX = cornerSize + 8
-                                    var startY = cornerSize + 8
-
-                                    // Gerar padrão baseado no endereço
-                                    var addr = address || "2x2coin"
-                                    for (var i = 0; i < dataArea / cellSize; i++) {
-                                        for (var j = 0; j < dataArea / cellSize; j++) {
-                                            var charCode = addr.charCodeAt((i * j) % addr.length)
-                                            if ((charCode + i + j) % 3 !== 0) {
-                                                ctx.fillRect(
-                                                    startX + i * cellSize,
-                                                    startY + j * cellSize,
-                                                    cellSize - 1, cellSize - 1
-                                                )
+                                function finder(x, y) {
+                                    for (var yy = 0; yy < 7; yy++) {
+                                        for (var xx = 0; xx < 7; xx++) {
+                                            if (xx === 0 || yy === 0 || xx === 6 || yy === 6 ||
+                                                (xx >= 2 && xx <= 4 && yy >= 2 && yy <= 4)) {
+                                                module(x + xx, y + yy)
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            // Logo 2X2Coin no centro do QR
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 36
-                                height: 36
-                                radius: 4
-                                color: "#00D4AA"
+                                finder(0, 0)
+                                finder(cells - 7, 0)
+                                finder(0, cells - 7)
 
-                                Label {
-                                    anchors.centerIn: parent
-                                    text: "2X2"
-                                    font.pixelSize: 9
-                                    font.bold: true
-                                    color: "#0F0F1A"
+                                for (var y = 0; y < cells; y++) {
+                                    for (var x = 0; x < cells; x++) {
+                                        var inFinder = (x < 8 && y < 8) ||
+                                                       (x > cells - 9 && y < 8) ||
+                                                       (x < 8 && y > cells - 9)
+                                        if (inFinder)
+                                            continue
+
+                                        var c = addr.charCodeAt((x * 17 + y * 31) % addr.length)
+                                        if (((c + x * 3 + y * 5) % 7) < 3)
+                                            module(x, y)
+                                    }
                                 }
                             }
                         }
 
-                        // URI 2X2Coin
-                        Label {
-                            text: "2x2coin:" + app.receiveAddress.substring(0, 12) + "..."
-                            font.pixelSize: 11
-                            color: "#8899AA"
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-                    }
-                }
-
-                // Endereço completo
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 70
-                    radius: 12
-                    color: "#1A1A2E"
-                    border.color: "#333355"
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 44
+                            height: 44
+                            radius: 10
+                            color: theme.background
+                            border.color: theme.neonGreen
 
                             Label {
-                                text: "Endereço de Recebimento"
-                                font.pixelSize: 11
-                                color: "#8899AA"
-                            }
-
-                            Label {
-                                text: app.receiveAddress
-                                font.pixelSize: 13
-                                color: "#FFFFFF"
-                                font.family: "monospace"
-                                wrapMode: Text.WrapAnywhere
-                                Layout.fillWidth: true
-                            }
-                        }
-
-                        // Botão copiar
-                        RoundButton {
-                            width: 40
-                            height: 40
-                            text: "📋"
-                            font.pixelSize: 18
-                            Material.background: "#00D4AA22"
-                            Material.foreground: "#00D4AA"
-                            onClicked: {
-                                app.copyToClipboard(app.receiveAddress)
+                                anchors.centerIn: parent
+                                text: "2X2"
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: theme.neonGreen
                             }
                         }
                     }
-                }
-
-                // Campo de valor a solicitar (opcional)
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
 
                     Label {
-                        text: "Solicitar Valor Específico (opcional)"
-                        font.pixelSize: 13
-                        color: "#8899AA"
-                    }
-
-                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
-
-                        TextField {
-                            id: requestAmountField
-                            Layout.fillWidth: true
-                            placeholderText: "0.00000000"
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            color: "#FFFFFF"
-                            placeholderTextColor: "#555566"
-                            font.pixelSize: 16
-
-                            background: Rectangle {
-                                radius: 8
-                                color: "#1A1A2E"
-                                border.color: requestAmountField.activeFocus ? "#00D4AA" : "#333355"
-                                border.width: requestAmountField.activeFocus ? 2 : 1
-                            }
-
-                            onTextChanged: qrCanvas.requestPaint()
-                        }
-
-                        Label {
-                            text: "2X2"
-                            font.pixelSize: 16
-                            font.bold: true
-                            color: "#00D4AA"
-                        }
+                        text: "2x2coin:" + displayAddress.substring(0, 16) + "..."
+                        color: theme.textMuted
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                        visible: displayAddress.length > 0
                     }
                 }
+            }
 
-                // Campo de label (opcional)
-                TextField {
-                    id: labelField
-                    Layout.fillWidth: true
-                    placeholderText: "Descrição (opcional)"
-                    color: "#FFFFFF"
-                    placeholderTextColor: "#555566"
-                    font.pixelSize: 14
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                spacing: 8
 
-                    background: Rectangle {
-                        radius: 8
-                        color: "#1A1A2E"
-                        border.color: labelField.activeFocus ? "#00D4AA" : "#333355"
-                        border.width: labelField.activeFocus ? 2 : 1
-                    }
+                Label {
+                    text: "Endereço"
+                    color: theme.textSecondary
+                    font.pixelSize: 13
+                    font.bold: true
                 }
 
-                // Botões de ação
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    // Gerar novo endereço
-                    Button {
-                        Layout.fillWidth: true
-                        height: 50
-                        text: "⊕  Novo Endereço"
-                        font.pixelSize: 14
-                        flat: false
-                        Material.background: "transparent"
-                        Material.foreground: "#00D4AA"
-                        background: Rectangle {
-                            radius: 4
-                            color: "transparent"
-                            border.color: "#00D4AA"
-                            border.width: 2
-                        }
-                        onClicked: {
-                            var label = labelField.text
-                            var newAddr = app.generateNewAddress(label)
-                            if (newAddr.length > 0) {
-                                qrCanvas.address = newAddr
-                                qrCanvas.requestPaint()
-                            }
-                        }
-                    }
-
-                    // Compartilhar
-                    Button {
-                        Layout.fillWidth: true
-                        height: 50
-                        text: "↗  Compartilhar"
-                        font.pixelSize: 14
-                        Material.background: "#00D4AA"
-                        Material.foreground: "#0F0F1A"
-                        onClicked: {
-                            var uri = app.generateQRCodeUrl(
-                                app.receiveAddress,
-                                requestAmountField.text.length > 0 ?
-                                    app.coinsToSatoshis(parseFloat(requestAmountField.text)) : 0
-                            )
-                            app.copyToClipboard(uri)
-                        }
-                    }
-                }
-
-                // Informação sobre endereços
                 Rectangle {
                     Layout.fillWidth: true
-                    height: infoLayout.implicitHeight + 16
-                    radius: 8
-                    color: "#0D2030"
-                    border.color: "#1A3A5C"
+                    radius: theme.radius
+                    color: theme.surface
+                    border.color: theme.outline
+                    implicitHeight: addressRow.implicitHeight + 22
 
                     RowLayout {
-                        id: infoLayout
+                        id: addressRow
                         anchors.fill: parent
-                        anchors.margins: 8
+                        anchors.margins: 11
                         spacing: 8
 
-                        Label {
-                            text: "ℹ"
-                            font.pixelSize: 16
-                            color: "#4488BB"
+                        TextArea {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 58
+                            text: displayAddress
+                            readOnly: true
+                            selectByMouse: true
+                            color: theme.textPrimary
+                            font.family: "monospace"
+                            font.pixelSize: 13
+                            wrapMode: TextEdit.WrapAnywhere
+                            background: Rectangle { color: "transparent" }
                         }
 
-                        Label {
-                            text: "Endereços 2X2Coin começam com o prefixo '2'. " +
-                                  "Cada transação usa um novo endereço para maior privacidade."
-                            font.pixelSize: 12
-                            color: "#8899AA"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
+                        ToolButton {
+                            Layout.preferredWidth: 42
+                            Layout.preferredHeight: 42
+                            icon.source: "qrc:/assets/icons/copy.svg"
+                            icon.color: theme.neonGreen
+                            icon.width: 22
+                            icon.height: 22
+                            onClicked: app.copyToClipboard(displayAddress)
                         }
                     }
                 }
             }
 
-            Item { height: 20 }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                Layout.preferredHeight: 54
+                text: "Gerar Novo Endereço de Depósito"
+                font.pixelSize: 14
+                font.bold: true
+                Material.foreground: theme.neonGreen
+                background: Rectangle {
+                    radius: theme.radius
+                    color: parent.down ? theme.neonGreenSoft : "transparent"
+                    border.color: theme.neonGreen
+                    border.width: 1
+                }
+                onClicked: {
+                    var newAddr = app.generateNewAddress("Deposito mobile")
+                    if (newAddr.length > 0) {
+                        displayAddress = newAddr
+                        qrCanvas.requestPaint()
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                Layout.bottomMargin: 24
+                radius: theme.radius
+                color: theme.backgroundRaised
+                border.color: theme.outline
+                implicitHeight: privacyNote.implicitHeight + 26
+
+                Label {
+                    id: privacyNote
+                    anchors.fill: parent
+                    anchors.margins: 13
+                    text: "Cada novo endereço é solicitado ao keypool da wallet C++ para melhorar privacidade sem perder controle das chaves."
+                    color: theme.textSecondary
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: app
+        function onAddressChanged() {
+            displayAddress = app.receiveAddress
+            qrCanvas.requestPaint()
         }
     }
 }

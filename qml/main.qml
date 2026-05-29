@@ -17,11 +17,14 @@ ApplicationWindow {
     height: 844
     title: "2X2Coin Wallet"
 
-    // Tema Material - Cores do 2X2Coin
+    AppTheme { id: theme }
+
+    // Material 3-inspired palette rendered by the native QML engine.
     Material.theme: Material.Dark
-    Material.accent: "#00D4AA"      // Verde-azulado 2X2Coin
-    Material.primary: "#1A1A2E"     // Azul escuro
-    Material.background: "#0F0F1A"  // Fundo muito escuro
+    Material.accent: theme.neonGreen
+    Material.primary: theme.electricBlue
+    Material.background: theme.background
+    color: theme.background
 
     // Propriedades globais
     property bool isFirstRun: !app.hasWallet
