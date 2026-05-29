@@ -174,10 +174,9 @@ Page {
             horizontalAlignment: Text.AlignHCenter
             Layout.fillWidth: true
             Layout.bottomMargin: 16
-        }
-    }
+    } // Fecha o Layout/Column anterior
 
-    // Animação de erro (shake)
+    // Animação de erro (shake) - Agora estruturada corretamente
     SequentialAnimation {
         id: shakeAnimation
         NumberAnimation { target: passwordField; property: "x"; to: -10; duration: 50 }
