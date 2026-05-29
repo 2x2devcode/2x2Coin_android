@@ -12,6 +12,7 @@
         <file>pages/HistoryTab.qml</file>
         <file>pages/SettingsTab.qml</file>
         <file>components/PageHeader.qml</file>
+        <file>components/AppTheme.qml</file>
         <file>components/TransactionListItem.qml</file>
         <file>components/NotificationBar.qml</file>
         <file>components/Snackbar.qml</file>
