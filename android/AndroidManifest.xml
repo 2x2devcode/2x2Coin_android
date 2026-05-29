@@ -24,7 +24,7 @@
 
         <activity
             android:name="org.qtproject.qt.android.bindings.QtActivity"
-            android:label="Coin2X2Wallet"
+            android:label="2x2Coin Wallet"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="true"
