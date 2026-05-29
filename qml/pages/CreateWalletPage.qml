@@ -1,194 +1,241 @@
 // Copyright (c) 2026 - 2X2Coin Project
-// Tela de criação de nova carteira 2X2Coin
+// New-wallet flow with a minimal PIN keypad and recovery phrase verification.
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
     id: createWalletPage
     signal walletCreated()
     signal back()
 
+    AppTheme { id: theme }
+
     property var mnemonic: []
-    property int currentStep: 0  // 0=senha, 1=mnemônico, 2=verificação
+    property int currentStep: 0
+    property string pin: ""
+    property string confirmPin: ""
+    property bool confirmingPin: false
+    property string pinError: ""
+    readonly property int pinLength: 6
 
-    background: Rectangle { color: "#0F0F1A" }
+    function activePin() {
+        return confirmingPin ? confirmPin : pin
+    }
 
-    header: ToolBar {
-        Material.background: "#1A1A2E"
-        RowLayout {
-            anchors.fill: parent
-            ToolButton {
-                text: "←"
-                font.pixelSize: 20
-                onClicked: {
-                    if (currentStep > 0) currentStep--
-                    else createWalletPage.back()
-                }
-            }
-            Label {
-                text: ["Definir Senha", "Frase de Recuperação", "Verificar Frase"][currentStep]
-                font.pixelSize: 16
-                font.bold: true
-                color: "#FFFFFF"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-            }
-            Item { width: 48 }
+    function appendDigit(digit) {
+        if (activePin().length >= pinLength)
+            return
+
+        if (confirmingPin)
+            confirmPin += digit
+        else
+            pin += digit
+
+        if (activePin().length === pinLength)
+            completePinStage()
+    }
+
+    function backspacePin() {
+        pinError = ""
+        if (confirmingPin)
+            confirmPin = confirmPin.slice(0, -1)
+        else
+            pin = pin.slice(0, -1)
+    }
+
+    function completePinStage() {
+        if (!confirmingPin) {
+            confirmingPin = true
+            pinError = ""
+            return
+        }
+
+        if (pin !== confirmPin) {
+            pinError = "Os PINs nao coincidem. Tente novamente."
+            pin = ""
+            confirmPin = ""
+            confirmingPin = false
+            return
+        }
+
+        if (app.createNewWallet(pin)) {
+            mnemonic = app.getMnemonic()
+            currentStep = 1
         }
     }
 
-    // Indicador de progresso
+    background: Rectangle { color: theme.background }
+
+    header: ToolBar {
+        Material.background: theme.background
+        height: 58
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+
+            ToolButton {
+                text: "‹"
+                font.pixelSize: 28
+                Material.foreground: theme.textPrimary
+                onClicked: {
+                    if (currentStep > 0) {
+                        currentStep--
+                    } else if (confirmingPin) {
+                        confirmingPin = false
+                        confirmPin = ""
+                        pinError = ""
+                    } else {
+                        createWalletPage.back()
+                    }
+                }
+            }
+
+            Label {
+                text: ["PIN de Acesso", "Backup da Wallet", "Confirmacao"][currentStep]
+                font.pixelSize: 16
+                font.bold: true
+                color: theme.textPrimary
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Item { Layout.preferredWidth: 48 }
+        }
+    }
+
     ProgressBar {
         anchors.top: parent.top
         width: parent.width
         value: (currentStep + 1) / 3
-        Material.accent: "#00D4AA"
+        Material.accent: currentStep === 0 ? theme.electricBlue : theme.neonGreen
+        background: Rectangle { color: theme.surface }
     }
 
-    // ============================================================
-    // Passo 0: Definir senha
-    // ============================================================
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
+        anchors.margins: theme.pageMargin
         spacing: 16
         visible: currentStep === 0
 
-        Item { Layout.fillHeight: true }
+        Item { Layout.fillHeight: true; Layout.minimumHeight: 12 }
 
-        Label {
-            text: "🔐"
-            font.pixelSize: 48
-            Layout.alignment: Qt.AlignHCenter
-        }
-
-        Label {
-            text: "Proteja sua carteira"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#FFFFFF"
-            Layout.alignment: Qt.AlignHCenter
-        }
-
-        Label {
-            text: "Crie uma senha forte para proteger o acesso à sua carteira 2X2Coin."
-            font.pixelSize: 14
-            color: "#8899AA"
-            wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
-            Layout.fillWidth: true
-        }
-
-        Item { height: 16 }
-
-        TextField {
-            id: passwordField
-            Layout.fillWidth: true
-            placeholderText: "Senha (mínimo 8 caracteres)"
-            echoMode: TextInput.Password
-            color: "#FFFFFF"
-            font.pixelSize: 16
-            background: Rectangle {
-                radius: 12; color: "#1A1A2E"
-                border.color: passwordField.activeFocus ? "#00D4AA" : "#333355"
-                border.width: passwordField.activeFocus ? 2 : 1
-            }
-        }
-
-        TextField {
-            id: confirmPasswordField
-            Layout.fillWidth: true
-            placeholderText: "Confirmar senha"
-            echoMode: TextInput.Password
-            color: "#FFFFFF"
-            font.pixelSize: 16
-            background: Rectangle {
-                radius: 12; color: "#1A1A2E"
-                border.color: {
-                    if (!confirmPasswordField.activeFocus && confirmPasswordField.text.length > 0)
-                        return passwordField.text === confirmPasswordField.text ? "#00D4AA" : "#FF5252"
-                    return confirmPasswordField.activeFocus ? "#00D4AA" : "#333355"
-                }
-                border.width: confirmPasswordField.activeFocus ? 2 : 1
-            }
-        }
-
-        // Força da senha
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
-            visible: passwordField.text.length > 0
+            spacing: 8
 
-            Label {
-                text: {
-                    var len = passwordField.text.length
-                    if (len < 8) return "Senha muito curta"
-                    if (len < 12) return "Senha fraca"
-                    if (len < 16) return "Senha média"
-                    return "Senha forte"
-                }
-                font.pixelSize: 12
-                color: {
-                    var len = passwordField.text.length
-                    if (len < 8) return "#FF5252"
-                    if (len < 12) return "#FF8C00"
-                    if (len < 16) return "#FFD700"
-                    return "#00D4AA"
-                }
-            }
-
-            ProgressBar {
+         Label {
                 Layout.fillWidth: true
-                value: Math.min(passwordField.text.length / 16, 1.0)
-                Material.accent: {
-                    var len = passwordField.text.length
-                    if (len < 8) return "#FF5252"
-                    if (len < 12) return "#FF8C00"
-                    if (len < 16) return "#FFD700"
-                    return "#00D4AA"
+                text: confirmingPin ? "Confirme seu PIN" : "Crie um PIN seguro"
+                font.pixelSize: 25
+                font.bold: true
+                color: theme.textPrimary
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+        Label {
+                Layout.fillWidth: true
+                text: confirmingPin
+                      ? "Digite novamente para confirmar o acesso a carteira."
+                      : "Use 6 digitos para bloquear a wallet e proteger o no local."
+                font.pixelSize: 13
+                color: theme.textSecondary
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 10
+            spacing: 12
+
+        Repeater {
+                model: pinLength
+                delegate: Rectangle {
+                    width: 14
+                    height: 14
+                    radius: 7
+                    color: index < activePin().length ? theme.neonGreen : "transparent"
+                    border.color: index < activePin().length ? theme.neonGreen : theme.outlineStrong
+                    border.width: 1
                 }
             }
         }
 
-        Item { Layout.fillHeight: true }
-
-        Button {
+        Label {
             Layout.fillWidth: true
-            height: 56
-            text: "Continuar →"
-            font.pixelSize: 16
-            font.bold: true
-            enabled: passwordField.text.length >= 8 &&
-                     passwordField.text === confirmPasswordField.text
-            Material.background: enabled ? "#00D4AA" : "#333355"
-            Material.foreground: enabled ? "#0F0F1A" : "#666677"
-            onClicked: {
-                // Criar wallet com a senha
-                if (app.createNewWallet(passwordField.text)) {
-                    mnemonic = app.getMnemonic()
-                    currentStep = 1
+            text: pinError
+            visible: pinError.length > 0
+            color: theme.danger
+            font.pixelSize: 12
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        Item { Layout.fillHeight: true; Layout.minimumHeight: 6 }
+
+        GridLayout {
+            Layout.fillWidth: true
+            Layout.maximumWidth: 320
+            Layout.alignment: Qt.AlignHCenter
+            columns: 3
+            rowSpacing: 12
+            columnSpacing: 12
+
+            Repeater {
+                model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"]
+                delegate: Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 62
+                    enabled: modelData !== ""
+                    text: modelData === "back" ? "⌫" : modelData
+                    font.pixelSize: modelData === "back" ? 20 : 22
+                    font.bold: modelData !== "back"
+                    Material.foreground: modelData === "back" ? theme.textSecondary : theme.textPrimary
+                    background: Rectangle {
+                        radius: theme.radiusLarge
+                        color: parent.down ? theme.surfaceHigh : theme.surface
+                        border.color: parent.down ? theme.electricBlue : theme.outline
+                        border.width: 1
+                    }
+                    onClicked: {
+                        pinError = ""
+                        if (modelData === "back")
+                            backspacePin()
+                        else
+                            appendDigit(modelData)
+                    }
                 }
             }
         }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 8
+            text: "O PIN e usado apenas localmente para proteger o arquivo da carteira."
+            font.pixelSize: 11
+            color: theme.textMuted
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
+        Item { Layout.fillHeight: true; Layout.minimumHeight: 8 }
     }
 
-    // ============================================================
-    // Passo 1: Exibir mnemônico
-    // ============================================================
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 12
+        anchors.margins: theme.pageMargin
+        spacing: 14
         visible: currentStep === 1
 
         Label {
-            text: "⚠ Anote estas 12 palavras em ordem"
-            font.pixelSize: 16
+            text: "Anote estas 12 palavras em ordem"
+            font.pixelSize: 20
             font.bold: true
-            color: "#FF8C00"
+            color: theme.textPrimary
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -196,12 +243,11 @@ Page {
         Label {
             text: "Esta é a única forma de recuperar sua carteira se você perder o acesso ao dispositivo."
             font.pixelSize: 13
-            color: "#8899AA"
+            color: theme.textSecondary
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
 
-        // Grid de palavras
         GridLayout {
             Layout.fillWidth: true
             columns: 3
@@ -212,21 +258,21 @@ Page {
                 model: mnemonic
                 delegate: Rectangle {
                     Layout.fillWidth: true
-                    height: 44
-                    radius: 8
-                    color: "#1A1A2E"
-                    border.color: "#00D4AA"
+                    height: 46
+                    radius: theme.radiusSmall
+                    color: theme.surface
+                    border.color: theme.outline
                     border.width: 1
 
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 8
-                        spacing: 4
+                        spacing: 5
 
                         Label {
                             text: (index + 1) + "."
                             font.pixelSize: 11
-                            color: "#555566"
+                            color: theme.textMuted
                             Layout.preferredWidth: 18
                         }
 
@@ -234,7 +280,7 @@ Page {
                             text: modelData
                             font.pixelSize: 14
                             font.bold: true
-                            color: "#00D4AA"
+                            color: theme.neonGreen
                             Layout.fillWidth: true
                         }
                     }
@@ -242,20 +288,19 @@ Page {
             }
         }
 
-        // Aviso
         Rectangle {
             Layout.fillWidth: true
-            height: 48
-            radius: 8
-            color: "#2A1A0A"
-            border.color: "#FF8C00"
+            implicitHeight: warningText.implicitHeight + 22
+            radius: theme.radius
+            color: "#20170B"
+            border.color: theme.warning
 
             Label {
-                anchors.fill: parent
-                anchors.margins: 8
-                text: "🔒 Guarde em local seguro. Nunca fotografe ou salve digitalmente."
+                id: warningText
+                anchors.margins: 11
+                text: "Guarde offline. Nunca fotografe, publique ou envie sua frase de recuperacao."
                 font.pixelSize: 12
-                color: "#FF8C00"
+                color: theme.warning
                 wrapMode: Text.WordWrap
             }
         }
@@ -268,51 +313,54 @@ Page {
 
             Button {
                 Layout.fillWidth: true
-                height: 48
+                Layout.preferredHeight: 52
                 text: "Copiar"
                 flat: true
-                Material.foreground: "#00D4AA"
+                
+                Material.foreground: theme.electricBlue
                 background: Rectangle {
-                    radius: 4; color: "transparent"
-                    border.color: "#00D4AA"; border.width: 1
+                    radius: theme.radius
+                    color: "transparent"
+                    border.color: theme.electricBlue
+                    border.width: 1
                 }
                 onClicked: app.copyToClipboard(mnemonic.join(" "))
             }
 
             Button {
                 Layout.fillWidth: true
-                height: 48
-                text: "Já anotei →"
+                Layout.preferredHeight: 52
+                text: "Ja anotei"
                 font.bold: true
-                Material.background: "#00D4AA"
-                Material.foreground: "#0F0F1A"
+                Material.foreground: theme.onAccent
+                background: Rectangle {
+                    radius: theme.radius
+                    color: parent.down ? "#17D68F" : theme.neonGreen
+                }
                 onClicked: currentStep = 2
             }
         }
     }
 
-    // ============================================================
-    // Passo 2: Verificar mnemônico
-    // ============================================================
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 12
+        anchors.margins: theme.pageMargin
+        spacing: 14
         visible: currentStep === 2
 
         Label {
-            text: "✓ Verificar Frase de Recuperação"
-            font.pixelSize: 18
+            text: "Confirme a frase de recuperacao"
+            font.pixelSize: 22
             font.bold: true
-            color: "#FFFFFF"
+            color: theme.textPrimary
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
 
         Label {
-            text: "Digite suas 12 palavras para confirmar que você as anotou corretamente."
+            text: "Digite as 12 palavras para confirmar que o backup foi salvo corretamente."
             font.pixelSize: 13
-            color: "#8899AA"
+             color: theme.textSecondary
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -320,42 +368,50 @@ Page {
         TextArea {
             id: verifyMnemonicField
             Layout.fillWidth: true
-            height: 100
-            placeholderText: "Digite as 12 palavras separadas por espaço..."
-            color: "#FFFFFF"
-            font.pixelSize: 14
+            
+            Layout.preferredHeight: 132
+            placeholderText: "palavra1 palavra2 ... palavra12"
+            color: theme.textPrimary
+            placeholderTextColor: theme.textMuted
+            font.pixelSize: 15
             wrapMode: TextEdit.WordWrap
             background: Rectangle {
-                radius: 12; color: "#1A1A2E"
-                border.color: verifyMnemonicField.activeFocus ? "#00D4AA" : "#333355"
+                radius: theme.radius
+                color: theme.surface
+                border.color: verifyMnemonicField.activeFocus ? theme.electricBlue : theme.outline
                 border.width: verifyMnemonicField.activeFocus ? 2 : 1
             }
         }
 
-        // Resultado da verificação
         Label {
             text: {
-                if (verifyMnemonicField.text.trim().split(" ").length < 12) return ""
-                return app.verifyMnemonic(verifyMnemonicField.text.trim()) ?
-                       "✓ Frase correta!" : "✗ Frase incorreta. Verifique as palavras."
+                if (verifyMnemonicField.text.trim().split(/\s+/).length < 12)
+                    return ""
+                return app.verifyMnemonic(verifyMnemonicField.text.trim())
+                       ? "Frase confirmada"
+                       : "Frase incorreta. Verifique a ordem das palavras."
             }
-            font.pixelSize: 14
+            font.pixelSize: 13
             font.bold: true
-            color: app.verifyMnemonic(verifyMnemonicField.text.trim()) ? "#00D4AA" : "#FF5252"
-            visible: verifyMnemonicField.text.trim().split(" ").length >= 12
+            color: app.verifyMnemonic(verifyMnemonicField.text.trim()) ? theme.neonGreen : theme.danger
+            visible: verifyMnemonicField.text.trim().split(/\s+/).length >= 12
         }
 
         Item { Layout.fillHeight: true }
 
         Button {
             Layout.fillWidth: true
-            height: 56
-            text: "✓  Concluir Criação da Carteira"
-            font.pixelSize: 16
+
+            Layout.preferredHeight: 56
+            text: "Concluir Criacao da Carteira"
+            font.pixelSize: 15
             font.bold: true
             enabled: app.verifyMnemonic(verifyMnemonicField.text.trim())
-            Material.background: enabled ? "#00D4AA" : "#333355"
-            Material.foreground: enabled ? "#0F0F1A" : "#666677"
+            Material.foreground: enabled ? theme.onAccent : theme.textMuted
+            background: Rectangle {
+                radius: theme.radius
+                color: parent.enabled ? theme.neonGreen : theme.slate
+            }
             onClicked: createWalletPage.walletCreated()
         }
     }
