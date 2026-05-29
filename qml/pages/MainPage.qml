@@ -70,7 +70,6 @@ Page {
         // Aba 3: Receber
         ReceiveTab {}
 
-        // Aba 4: Configurações
         SettingsTab {
             onLockWallet: mainPage.lockWallet()
         }

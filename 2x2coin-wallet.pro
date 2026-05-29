@@ -74,7 +74,6 @@ android {
         androidx.appcompat:appcompat:1.6.1 \
         androidx.biometric:biometric:1.1.0
     
-  # SDK — Android API 34 por padrão; sobrescreva com ANDROID_TARGET_SDK no ambiente.
     ANDROID_MIN_SDK_VERSION = 23
     isEmpty(ANDROID_TARGET_SDK) {
         ANDROID_TARGET_SDK_VERSION = 34
