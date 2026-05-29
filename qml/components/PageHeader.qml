@@ -10,26 +10,28 @@ Rectangle {
     id: pageHeader
     property string title: ""
     property string subtitle: ""
+    property bool compact: false
+    property bool showBack: false
+
+    AppTheme { id: theme }
 
     Layout.fillWidth: true
     width: parent ? parent.width : 390
-    height: 64
-    color: "#1A1A2E"
+    height: compact ? 56 : 72
+    color: theme.background
 
-    // Linha decorativa inferior
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1
-        color: "#333355"
+        color: theme.outline
     }
 
-    // Linha de destaque
     Rectangle {
         anchors.bottom: parent.bottom
-        width: 60
+        width: 64
         height: 2
-        color: "#00D4AA"
+        color: theme.electricBlue
         anchors.horizontalCenter: parent.horizontalCenter
     }
 
@@ -39,16 +41,16 @@ Rectangle {
 
         Label {
             text: pageHeader.title
-            font.pixelSize: 18
+            font.pixelSize: compact ? 17 : 20
             font.bold: true
-            color: "#FFFFFF"
+            color: theme.textPrimary
             Layout.alignment: Qt.AlignHCenter
         }
 
         Label {
             text: pageHeader.subtitle
             font.pixelSize: 12
-            color: "#8899AA"
+            color: theme.textSecondary
             Layout.alignment: Qt.AlignHCenter
             visible: pageHeader.subtitle.length > 0
         }
