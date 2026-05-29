@@ -15,8 +15,8 @@
     <application
         android:hardwareAccelerated="true"
         android:name="org.qtproject.qt.android.bindings.QtApplication"
-        android:label="Coin2X2Wallet"
-        android:icon="@drawable/icon"
+        android:label="2x2Coin Wallet"
+        android:icon="@drawable/ic_launcher"
         android:theme="@style/QtTheme" 
         android:extractNativeLibs="true"
         android:allowBackup="true"
