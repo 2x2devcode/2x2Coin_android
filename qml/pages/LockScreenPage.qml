@@ -54,7 +54,6 @@ Page {
                 color: theme.surface
                 border.color: theme.neonGreen
                 border.width: 1
-                }
 
                 Label {
                     anchors.centerIn: parent

@@ -1,15 +1,20 @@
-import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import QtQuick.Controls.Material
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Controls.Material 2.15
 import "../components"
 
 Page {
     id: sendPage
-    background: Rectangle { color: "#0F0F1A" }
+
+    AppTheme { id: theme }
+    readonly property bool canConfirm: addressField.text.trim().length > 10 && amountField.text.trim().length > 0
+
+    background: Rectangle { color: theme.background }
 
     header: PageHeader {
-        title: "Send 2X2Coin"
+        title: "Enviar 2x2Coin"
+        subtitle: "Transferência na rede descentralizada"
         showBack: false
     }
 
@@ -23,65 +28,95 @@ Page {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 16
-            spacing: 20
+            anchors.margins: theme.pageMargin
+            spacing: 18
 
-            // Card de Available Balance
             Rectangle {
                 Layout.fillWidth: true
-                height: 80
-                color: "#1A1A2E"
-                radius: 12
-                border.color: "#333355"
+                radius: theme.radiusLarge
+                color: theme.surface
+                border.color: theme.outline
+                implicitHeight: balanceRow.implicitHeight + 28
 
                 RowLayout {
+                    id: balanceRow
                     anchors.fill: parent
-                    anchors.margins: 16
+                    anchors.margins: 14
                     spacing: 12
 
                     Rectangle {
-                        width: 40; height: 40; radius: 20; color: "#1000D4AA"
-                        Image {
-                            anchors.centerIn: parent; width: 20; height: 20
-                            source: "qrc:/assets/icons/home.svg"
-                            sourceSize: Qt.size(20, 20)
+                        Layout.preferredWidth: 42
+                        Layout.preferredHeight: 42
+                        radius: 21
+                        color: theme.neonGreenSoft
+                        border.color: theme.neonGreen
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: "2X2"
+                            color: theme.neonGreen
+                            font.pixelSize: 10
+                            font.bold: true
                         }
                     }
 
                     ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: 2
-                        Label { text: "Available Balance"; color: "#8899AA"; font.pixelSize: 12 }
-                        Label { 
-                            text: app.balance + " 2X2"
-                            color: "#FFFFFF"; font.pixelSize: 18; font.bold: true 
+                        Label { text: "Saldo disponível"; color: theme.textSecondary; font.pixelSize: 12 }
+                        Label {
+                            text: app.balance
+                            color: theme.textPrimary
+                            font.pixelSize: 18
+                            font.bold: true
                         }
                     }
                 }
             }
 
-            // Formulário de Envio
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 16
 
                 ColumnLayout {
                     spacing: 8
-                    Label { text: "Destination Address"; color: "#8899AA"; font.pixelSize: 13 }
-                    RowLayout {
-                        spacing: 8
+                    Layout.fillWidth: true
+                    Label { text: "Endereço de Destino"; color: theme.textSecondary; font.pixelSize: 13; font.bold: true }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 58
+                        radius: theme.radius
+                        color: theme.surface
+                        border.color: addressField.activeFocus ? theme.electricBlue : theme.outline
+                        border.width: addressField.activeFocus ? 2 : 1
+
                         TextField {
                             id: addressField
-                            Layout.fillWidth: true
-                            placeholderText: "Enter or paste address"
-                            color: "#FFFFFF"
+                            anchors.left: parent.left
+                            anchors.right: scanButton.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 4
+                            placeholderText: "Cole ou digite o endereço 2x2Coin"
+                            placeholderTextColor: theme.textMuted
+                            color: theme.textPrimary
                             font.pixelSize: 14
-                            background: Rectangle {
-                                radius: 8; color: "#1A1A2E"; border.color: addressField.activeFocus ? "#00D4AA" : "#333355"
-                            }
+                            background: Rectangle { color: "transparent" }
                         }
-                        Button {
+
+                        ToolButton {
+                            id: scanButton
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.rightMargin: 6
+                            width: 46
+                            height: 46
                             icon.source: "qrc:/assets/icons/qr.svg"
-                            icon.color: "#00D4AA"
+                            icon.color: theme.neonGreen
+                            icon.width: 22
+                            icon.height: 22
                             flat: true
                             onClicked: qrScanDialog.open()
                         }
@@ -90,66 +125,95 @@ Page {
 
                 ColumnLayout {
                     spacing: 8
-                    Label { text: "Amount"; color: "#8899AA"; font.pixelSize: 13 }
+                    Layout.fillWidth: true
+                    Label { text: "Quantidade"; color: theme.textSecondary; font.pixelSize: 13; font.bold: true }
                     RowLayout {
+                        Layout.fillWidth: true
                         spacing: 8
                         TextField {
                             id: amountField
                             Layout.fillWidth: true
-                            placeholderText: "0.00"
+                            Layout.preferredHeight: 58
+                            placeholderText: "0.00000000"
+                            placeholderTextColor: theme.textMuted
                             inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            color: "#FFFFFF"
+                            color: theme.textPrimary
                             font.pixelSize: 16
                             font.bold: true
                             background: Rectangle {
-                                radius: 8; color: "#1A1A2E"; border.color: amountField.activeFocus ? "#00D4AA" : "#333355"
+                                radius: theme.radius
+                                color: theme.surface
+                                border.color: amountField.activeFocus ? theme.electricBlue : theme.outline
+                                border.width: amountField.activeFocus ? 2 : 1
                             }
                         }
                         Button {
-                            text: "MÁX"
-                            flat: true
-                            Material.foreground: "#00D4AA"
-                            onClicked: amountField.text = app.balance
-                        }
-                    }
-                }
-
-                ColumnLayout {
-                    spacing: 8
-                    Label { text: "Transaction Fee"; color: "#8899AA"; font.pixelSize: 13 }
-                    ComboBox {
-                        id: feeCombo
-                        Layout.fillWidth: true
-                        model: ["Economic (Slow)", "Normal (Recommended)", "Priority (Fast)"]
-                        currentIndex: 1
-                        delegate: ItemDelegate {
-                            width: feeCombo.width
-                            text: modelData
-                            highlighted: feeCombo.highlightedIndex === index
+                            Layout.preferredWidth: 96
+                            Layout.preferredHeight: 58
+                            text: "Máximo"
+                            font.bold: true
+                            Material.foreground: theme.neonGreen
+                            background: Rectangle {
+                                radius: theme.radius
+                                color: parent.down ? theme.neonGreenSoft : "transparent"
+                                border.color: theme.neonGreen
+                                border.width: 1
+                            }
+                            onClicked: amountField.text = app.balance.replace(" 2X2", "").replace("2X2", "").trim()
                         }
                     }
                 }
             }
 
-            Item { Layout.preferredHeight: 10 }
+            Rectangle {
+                Layout.fillWidth: true
+                radius: theme.radius
+                color: theme.backgroundRaised
+                border.color: theme.outline
+                implicitHeight: feeLayout.implicitHeight + 24
+
+                RowLayout {
+                    id: feeLayout
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 10
+
+                    Label {
+                        text: "Taxa estimada"
+                        color: theme.textSecondary
+                        font.pixelSize: 12
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: canConfirm ? app.estimateFee(addressField.text.trim(), amountField.text.trim()) : "0.0001 2X2"
+                        color: theme.textPrimary
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: 8 }
 
             Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 50
-                text: "REVIEW TRANSACTION"
+                text: "Confirmar Transação"
                 font.bold: true
-                enabled: addressField.text.length > 10 && parseFloat(amountField.text) > 0
-                Material.background: "#00D4AA"
-                Material.foreground: "#0F0F1A"
+                enabled: canConfirm
+                Material.foreground: enabled ? theme.textPrimary : theme.textMuted
+                background: Rectangle {
+                    radius: theme.radius
+                    color: parent.enabled ? theme.electricBlue : theme.slate
+                }
                 onClicked: confirmDialog.open()
             }
         }
     }
 
-    // Diálogo de Confirmação
     Dialog {
         id: confirmDialog
-        title: "Confirm Send"
+        title: "Confirmar Transação"
         modal: true
         anchors.centerIn: parent
         width: parent.width - 32
@@ -160,15 +224,15 @@ Page {
             spacing: 12
 
             Label {
-                text: "You are sending"
-                color: "#8899AA"
+                text: "Você está enviando"
+                color: theme.textSecondary
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
             }
 
             Label {
                 text: amountField.text + " 2X2"
-                color: "#FFFFFF"
+                color: theme.textPrimary
                 font.pixelSize: 24
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -178,15 +242,15 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: "#333355"
+                color: theme.outline
             }
 
             ColumnLayout {
                 spacing: 4
-                Label { text: "To:"; color: "#8899AA"; font.pixelSize: 12 }
-                Label { 
+                Label { text: "Destino:"; color: theme.textSecondary; font.pixelSize: 12 }
+                Label {
                     text: addressField.text
-                    color: "#FFFFFF"
+                    color: theme.textPrimary
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
                     Layout.fillWidth: true
@@ -194,37 +258,37 @@ Page {
             }
 
             RowLayout {
-                Label { text: "Fee:"; color: "#8899AA"; font.pixelSize: 12; Layout.fillWidth: true }
-                Label { text: "0.0001 2X2"; color: "#FFFFFF"; font.pixelSize: 12 }
+                Label { text: "Taxa:"; color: theme.textSecondary; font.pixelSize: 12; Layout.fillWidth: true }
+                Label { text: app.estimateFee(addressField.text.trim(), amountField.text.trim()); color: theme.textPrimary; font.pixelSize: 12 }
             }
         }
 
         footer: DialogButtonBox {
             Button {
-                text: "CONFIRM AND SEND"
+                text: "Enviar"
                 DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-                Material.background: "#00D4AA"
-                Material.foreground: "#0F0F1A"
+                Material.background: theme.electricBlue
+                Material.foreground: theme.textPrimary
             }
         }
 
         onAccepted: {
-            if (app.sendCoins(addressField.text, parseFloat(amountField.text))) {
-                successDialog.txid = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
+            var txid = app.sendCoins(addressField.text.trim(), amountField.text.trim())
+            if (txid.length > 0) {
+                successDialog.txid = txid
                 successDialog.open()
                 addressField.text = ""
                 amountField.text = ""
             } else {
-                app.showNotification("Erro ao enviar moedas. Verifique o saldo e o endereço.")
+                app.showNotification("2x2Coin Wallet", "Erro ao enviar moedas. Verifique saldo e endereço.")
             }
         }
     }
 
-    // Diálogo de Sucesso
     Dialog {
         id: successDialog
         property string txid: ""
-        title: "Transaction Sent!"
+        title: "Transação Enviada"
         modal: true
         anchors.centerIn: parent
         width: parent.width - 32
@@ -235,47 +299,47 @@ Page {
             spacing: 16
             
             Rectangle {
-                width: 60; height: 60; radius: 30; color: "#1000D4AA"
+                width: 60; height: 60; radius: 30; color: theme.neonGreenSoft
                 Layout.alignment: Qt.AlignHCenter
-                Image {
-                    anchors.centerIn: parent; width: 30; height: 30
-                    source: "qrc:/assets/icons/send.svg"
-                    sourceSize: Qt.size(30, 30)
+                Label {
+                    anchors.centerIn: parent
+                    text: "OK"
+                    color: theme.neonGreen
+                    font.bold: true
                 }
             }
 
             Label {
-                text: "Your transaction has been successfully broadcast to the 2X2Coin network."
+                text: "A transação foi transmitida para a rede 2x2Coin."
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
-                color: "#FFFFFF"
+                color: theme.textPrimary
             }
 
             Button {
-                text: "VIEW IN EXPLORER"
+                text: "Abrir no Explorer"
                 Layout.alignment: Qt.AlignHCenter
                 flat: true
-                Material.foreground: "#00D4AA"
+                Material.foreground: theme.electricBlue
                 onClicked: app.openExplorer(successDialog.txid)
             }
         }
     }
 
-    // Diálogo de QR scan (placeholder)
     Dialog {
         id: qrScanDialog
-        title: "Scan QR Code"
+        title: "Scanner QR"
         modal: true
         anchors.centerIn: parent
         width: parent.width - 32
         standardButtons: Dialog.Cancel
 
         Label {
-            text: "Point the camera at the 2X2Coin address QR Code"
+            text: "Aponte a câmera para o QR Code de um endereço 2x2Coin."
             wrapMode: Text.WordWrap
             width: parent.width
-            color: "#FFFFFF"
+            color: theme.textPrimary
         }
     }
 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 - 2X2Coin Project
-// Aba de visão geral da wallet 2X2Coin
+// Balance dashboard for the 2x2Coin wallet.
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
@@ -9,432 +9,317 @@ import "../components"
 
 Item {
     id: overviewTab
+    signal openSend()
+    signal openReceive()
+    signal openSettings()
 
-    // Atualizar dados ao entrar na aba
-    Component.onCompleted: refreshData()
-
-    function refreshData() {
-        transactionModel.clear()
-        var txs = app.getTransactions(10, 0)
-        for (var i = 0; i < txs.length; i++) {
-            transactionModel.append(txs[i])
-        }
-    }
-
-    // Modelo de transações recentes
-    ListModel {
-        id: transactionModel
-    }
-
-    // Conexões para atualização automática
-    Connections {
-        target: app
-        function onBalanceChanged() {
-            refreshData()
-        }
-        function onTransactionReceived(tx) {
-            refreshData()
-        }
-    }
+    AppTheme { id: theme }
 
     ScrollView {
         anchors.fill: parent
         contentWidth: parent.width
+        background: Rectangle { color: theme.background }
 
         ColumnLayout {
             width: parent.width
-            spacing: 0
+            spacing: 18
 
-            // ============================================================
-            // Cabeçalho com logo e status de rede
-            // ============================================================
             Rectangle {
                 Layout.fillWidth: true
-                height: 60
-                color: "#1A1A2E"
+                Layout.margins: theme.pageMargin
+                Layout.bottomMargin: 0
+                radius: theme.radiusLarge
+                color: theme.surface
+                border.color: theme.outline
+                border.width: 1
+                implicitHeight: syncLayout.implicitHeight + 26
 
-                RowLayout {
+                ColumnLayout {
+                    id: syncLayout
                     anchors.fill: parent
-                    anchors.leftMargin: 16
-                    anchors.rightMargin: 16
+                    anchors.margins: 14
+                    spacing: 10
 
-                    // Logo 2X2Coin
-                    Image {
-                        source: "qrc:/assets/images/logo_2x2coin.png"
-                        width: 32
-                        height: 32
-                        fillMode: Image.PreserveAspectFit
-                    }
-
-                    Label {
-                        text: "2X2Coin Wallet"
-                        font.pixelSize: 18
-                        font.bold: true
-                        color: "#FFFFFF"
+                    RowLayout {
                         Layout.fillWidth: true
-                        leftPadding: 8
-                    }
-
-                    // Indicador de conexão
-                    Row {
-                        spacing: 4
+                        spacing: 10
 
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
-                            color: app.isConnected ? "#00D4AA" : "#FF5252"
-                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.preferredWidth: 10
+                            Layout.preferredHeight: 10
+                            radius: 5
+                            color: app.isConnected ? theme.neonGreen : theme.danger
 
                             SequentialAnimation on opacity {
                                 running: app.isSyncing
                                 loops: Animation.Infinite
-                                NumberAnimation { to: 0.3; duration: 500 }
-                                NumberAnimation { to: 1.0; duration: 500 }
+                                NumberAnimation { to: 0.35; duration: 650 }
+                                NumberAnimation { to: 1.0; duration: 650 }
                             }
                         }
 
                         Label {
-                            text: app.isConnected ?
-                                  (app.isSyncing ? "Sincronizando..." :
-                                   app.peerCount + " peers") : "Desconectado"
-                            font.pixelSize: 11
-                            color: app.isConnected ? "#00D4AA" : "#FF5252"
-                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.fillWidth: true
+                            text: app.isSyncing ? "Sincronizando com a rede..." : "Blockchain Atualizada"
+                            color: theme.textPrimary
+                            font.pixelSize: 14
+                            font.bold: true
                         }
+
+                        Label {
+                            text: app.peerCount + " peers"
+                            color: theme.textSecondary
+                            font.pixelSize: 11
+                            visible: app.isConnected
+                        }
+                    }
+
+                    ProgressBar {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 3
+                        value: app.isSyncing ? 0.68 : 1.0
+                        indeterminate: app.isSyncing
+                        background: Rectangle {
+                            radius: 2
+                            color: theme.slate
+                        }
+                        contentItem: Item {
+                            Rectangle {
+                                width: parent.width * syncProgress.visualPosition
+                                height: parent.height
+                                radius: 2
+                                color: app.isSyncing ? theme.electricBlue : theme.neonGreen
+                            }
+                        }
+                        id: syncProgress
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Último Bloco Sincronizado: #" + app.blockHeight
+                        color: theme.textMuted
+                        font.pixelSize: 11
                     }
                 }
             }
 
-            // ============================================================
-            // Card de Saldo Principal
-            // ============================================================
             Rectangle {
                 Layout.fillWidth: true
-                Layout.margins: 16
-                height: 200
-                radius: 20
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "#1A3A5C" }
-                    GradientStop { position: 0.5; color: "#0D2B4A" }
-                    GradientStop { position: 1.0; color: "#162040" }
-                }
-
-                // Borda sutil
-                border.color: "#00D4AA"
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                radius: 26
+                border.color: theme.outlineStrong
                 border.width: 1
-
-                // Efeito de brilho no topo
-                Rectangle {
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    height: 1
-                    color: "#00D4AA"
-                    opacity: 0.5
+                implicitHeight: balanceLayout.implicitHeight + 42
+                gradient: Gradient {
+                    orientation: Gradient.Diagonal
+                    GradientStop { position: 0.0; color: "#121A24" }
+                    GradientStop { position: 0.55; color: "#0B1119" }
+                    GradientStop { position: 1.0; color: "#071511" }
                 }
 
                 ColumnLayout {
+                    id: balanceLayout
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 8
+                    anchors.margins: 22
+                    spacing: 10
 
-                    // Rede e bloco
                     RowLayout {
                         Layout.fillWidth: true
 
                         Label {
-                            text: app.networkName
-                            font.pixelSize: 12
-                            color: "#00D4AA"
-                            background: Rectangle {
-                                color: "#00D4AA22"
-                                radius: 4
-                            }
-                            leftPadding: 6
-                            rightPadding: 6
-                            topPadding: 2
-                            bottomPadding: 2
+                            text: "Saldo total"
+                            color: theme.textSecondary
+                            font.pixelSize: 13
+                            Layout.fillWidth: true
                         }
 
-                        Label {
-                            text: app.isPoS ? "⚡ PoS" : "⛏ PoW"
-                            font.pixelSize: 12
-                            color: app.isPoS ? "#FFD700" : "#FF8C00"
-                            leftPadding: 8
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        Label {
-                            text: "Bloco #" + app.blockHeight
-                            font.pixelSize: 11
-                            color: "#8899AA"
-                        }
-                    }
-
-                    // Saldo principal
-                    Label {
-                        text: "Saldo Disponível"
-                        font.pixelSize: 13
-                        color: "#8899AA"
-                        Layout.topMargin: 8
-                    }
-
-                    Label {
-                        id: balanceLabel
-                        text: app.balance
-                        font.pixelSize: 32
-                        font.bold: true
-                        color: "#FFFFFF"
-                        Layout.fillWidth: true
-
-                        // Animação ao atualizar
-                        Behavior on text {
-                            SequentialAnimation {
-                                NumberAnimation {
-                                    target: balanceLabel
-                                    property: "opacity"
-                                    to: 0.5
-                                    duration: 100
-                                }
-                                NumberAnimation {
-                                    target: balanceLabel
-                                    property: "opacity"
-                                    to: 1.0
-                                    duration: 200
-                                }
-                            }
-                        }
-                    }
-
-                    // Saldos secundários
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 16
-
-                        ColumnLayout {
-                            spacing: 2
+                        Rectangle {
+                            radius: 10
+                            color: theme.electricBlueSoft
+                            implicitWidth: networkLabel.implicitWidth + 18
+                            implicitHeight: 26
+                            border.color: theme.electricBlue
                             Label {
-                                text: "Não confirmado"
+                                id: networkLabel
+                                anchors.centerIn: parent
+                                text: app.networkName
+                                color: theme.electricBlue
                                 font.pixelSize: 11
-                                color: "#8899AA"
-                            }
-                            Label {
-                                text: app.unconfBalance
-                                font.pixelSize: 13
-                                color: "#FFB300"
-                            }
-                        }
-
-                        ColumnLayout {
-                            spacing: 2
-                            visible: app.isPoS
-                            Label {
-                                text: "Staking"
-                                font.pixelSize: 11
-                                color: "#8899AA"
-                            }
-                            Label {
-                                text: app.stakeBalance
-                                font.pixelSize: 13
-                                color: "#00D4AA"
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ColumnLayout {
-                            spacing: 2
-                            Label {
-                                text: "Total"
-                                font.pixelSize: 11
-                                color: "#8899AA"
-                            }
-                            Label {
-                                text: app.totalBalance
-                                font.pixelSize: 13
-                                color: "#FFFFFF"
                                 font.bold: true
                             }
                         }
                     }
+
+                    Label {
+                        id: balanceLabel
+                        Layout.fillWidth: true
+                        text: app.balance
+                        color: theme.textPrimary
+                        font.pixelSize: 38
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WrapAnywhere
+
+                        Behavior on opacity { NumberAnimation { duration: 180 } }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: "≈ R$ 0,00"
+                        color: theme.textSecondary
+                        font.pixelSize: 15
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 10
+                        spacing: 10
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 58
+                            radius: theme.radius
+                            color: theme.backgroundRaised
+                            border.color: theme.outline
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 2
+                                Label { text: "Pendente"; color: theme.textMuted; font.pixelSize: 11; Layout.alignment: Qt.AlignHCenter }
+                                Label { text: app.unconfBalance; color: theme.warning; font.pixelSize: 12; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 58
+                            radius: theme.radius
+                            color: theme.backgroundRaised
+                            border.color: theme.outline
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 2
+                                Label { text: "Total"; color: theme.textMuted; font.pixelSize: 11; Layout.alignment: Qt.AlignHCenter }
+                                Label { text: app.totalBalance; color: theme.neonGreen; font.pixelSize: 12; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                            }
+                        }
+                    }
                 }
             }
 
-            // ============================================================
-            // Botões de ação rápida
-            // ============================================================
+            Label {
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                Layout.fillWidth: true
+                text: "Ações rápidas"
+                color: theme.textPrimary
+                font.pixelSize: 18
+                font.bold: true
+            }
+
             RowLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 16
-                Layout.rightMargin: 16
-                Layout.bottomMargin: 8
-                spacing: 12
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                spacing: 10
 
-                // Botão Enviar
                 Button {
                     Layout.fillWidth: true
-                    height: 50
-                    text: "↑  Enviar"
-                    font.pixelSize: 15
+                    Layout.preferredHeight: 104
+                    text: "Enviar"
+                    font.pixelSize: 13
                     font.bold: true
-                    Material.background: "#00D4AA"
-                    Material.foreground: "#0F0F1A"
-                    onClicked: {
-                        // Navegar para aba de envio
-                        var tabBar = parent.parent.parent.parent.footer
-                        if (tabBar) tabBar.currentIndex = 1
+                    icon.source: "qrc:/assets/icons/send.svg"
+                    icon.color: theme.electricBlue
+                    icon.width: 26
+                    icon.height: 26
+                    display: AbstractButton.TextUnderIcon
+                    Material.foreground: theme.textPrimary
+                    background: Rectangle {
+                        radius: theme.radiusLarge
+                        color: parent.down ? theme.surfaceHigh : theme.surface
+                        border.color: theme.electricBlue
+                        border.width: 1
                     }
+                    onClicked: overviewTab.openSend()
                 }
 
-                // Botão Receber
                 Button {
                     Layout.fillWidth: true
-                    height: 50
-                    text: "↓  Receber"
-                    font.pixelSize: 15
+                    Layout.preferredHeight: 104
+                    text: "Receber\nDepósitos"
+                    font.pixelSize: 13
                     font.bold: true
-                    Material.background: "transparent"
-                    Material.foreground: "#00D4AA"
-                    flat: false
+                    icon.source: "qrc:/assets/icons/receive.svg"
+                    icon.color: theme.neonGreen
+                    icon.width: 26
+                    icon.height: 26
+                    display: AbstractButton.TextUnderIcon
+                    Material.foreground: theme.textPrimary
                     background: Rectangle {
-                        radius: 4
-                        color: "transparent"
-                        border.color: "#00D4AA"
-                        border.width: 2
+                        radius: theme.radiusLarge
+                        color: parent.down ? theme.surfaceHigh : theme.surface
+                        border.color: theme.neonGreen
+                        border.width: 1
                     }
-                    onClicked: {
-                        var tabBar = parent.parent.parent.parent.footer
-                        if (tabBar) tabBar.currentIndex = 2
+                    onClicked: overviewTab.openReceive()
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 104
+                    text: "Configurações"
+                    font.pixelSize: 13
+                    font.bold: true
+                    icon.source: "qrc:/assets/icons/settings.svg"
+                    icon.color: theme.textSecondary
+                    icon.width: 26
+                    icon.height: 26
+                    display: AbstractButton.TextUnderIcon
+                    Material.foreground: theme.textPrimary
+                    background: Rectangle {
+                        radius: theme.radiusLarge
+                        color: parent.down ? theme.surfaceHigh : theme.surface
+                        border.color: theme.outline
+                        border.width: 1
                     }
+                    onClicked: overviewTab.openSettings()
                 }
             }
 
-            // ============================================================
-            // Informações de Staking (PoS)
-            // ============================================================
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: 16
-                Layout.rightMargin: 16
-                Layout.bottomMargin: 8
-                height: 60
-                radius: 12
-                color: "#1A2A1A"
-                border.color: app.stakingEnabled ? "#00D4AA" : "#333355"
-                border.width: 1
-                visible: app.isPoS
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 12
-
-                    // Ícone de staking
-                    Label {
-                        text: app.stakingEnabled ? "⚡" : "💤"
-                        font.pixelSize: 24
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Label {
-                            text: app.stakingEnabled ? "Staking Ativo" : "Staking Inativo"
-                            font.pixelSize: 14
-                            font.bold: true
-                            color: app.stakingEnabled ? "#00D4AA" : "#8899AA"
-                        }
-                        Label {
-                            text: app.getStakingInfo()
-                            font.pixelSize: 11
-                            color: "#8899AA"
-                        }
-                    }
-
-                    Switch {
-                        checked: app.stakingEnabled
-                        Material.accent: "#00D4AA"
-                        onToggled: app.setStakingEnabled(checked)
-                    }
-                }
-            }
-
-            // ============================================================
-            // Recent Transactions
-            // ============================================================
-            Label {
-                text: "Recent Transactions"
-                font.pixelSize: 16
-                font.bold: true
-                color: "#FFFFFF"
-                Layout.leftMargin: 16
-                Layout.topMargin: 8
-                Layout.bottomMargin: 8
-            }
-
-            // Lista de transações
-            Repeater {
-                model: transactionModel
-
-                delegate: TransactionListItem {
-                    width: overviewTab.width - 32
-                    x: 16
-                    txid: model.txid
-                    address: model.address
-                    amount: model.amount
-                    timestamp: model.timestamp
-                    isReceived: model.isReceived
-                    status: model.status
-                    type: model.type
-                    confirmations: model.confirmations
-                }
-            }
-
-            // Mensagem quando não há transações
-            Item {
-                Layout.fillWidth: true
-                height: 120
-                visible: transactionModel.count === 0
+                Layout.leftMargin: theme.pageMargin
+                Layout.rightMargin: theme.pageMargin
+                Layout.bottomMargin: 24
+                radius: theme.radius
+                color: theme.backgroundRaised
+                border.color: theme.outline
+                implicitHeight: nodeLayout.implicitHeight + 28
 
                 ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 8
+                    id: nodeLayout
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 7
 
                     Label {
-                        text: "📭"
-                        font.pixelSize: 40
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-                    Label {
-                        text: "Nenhuma transação ainda"
+                        text: "Nó nativo 2x2Coin"
+                        color: theme.textPrimary
                         font.pixelSize: 14
-                        color: "#8899AA"
-                        Layout.alignment: Qt.AlignHCenter
+                        font.bold: true
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Blockchain local em C++ baseada no repositório oficial coinsdevcode/2x2Coin."
+                        color: theme.textSecondary
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
-
-            // Ver todas as transações
-            Button {
-                Layout.fillWidth: true
-                Layout.leftMargin: 16
-                Layout.rightMargin: 16
-                Layout.bottomMargin: 16
-                text: "View All as Transações"
-                flat: true
-                Material.foreground: "#00D4AA"
-                visible: transactionModel.count > 0
-                onClicked: {
-                    var tabBar = parent.parent.parent.footer
-                    if (tabBar) tabBar.currentIndex = 3
-                }
-            }
-
-            // Espaçamento final
-            Item { height: 20 }
         }
     }
 }

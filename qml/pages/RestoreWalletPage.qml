@@ -5,28 +5,32 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
     id: restorePage
     signal walletRestored()
     signal back()
 
-    background: Rectangle { color: "#0F0F1A" }
+    AppTheme { id: theme }
+
+    background: Rectangle { color: theme.background }
 
     header: ToolBar {
-        Material.background: "#1A1A2E"
+        Material.background: theme.background
         RowLayout {
             anchors.fill: parent
             ToolButton {
                 text: "←"
                 font.pixelSize: 20
+                Material.foreground: theme.textPrimary
                 onClicked: restorePage.back()
             }
             Label {
-                text: "Restaurar Carteira"
+                text: "Abrir Carteira Existente"
                 font.pixelSize: 16
                 font.bold: true
-                color: "#FFFFFF"
+                color: theme.textPrimary
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -46,24 +50,31 @@ Page {
             Item { height: 8 }
 
             Label {
-                text: "↺"
-                font.pixelSize: 48
+                text: "2X2"
+                font.pixelSize: 26
+                font.bold: true
                 Layout.alignment: Qt.AlignHCenter
-                color: "#00D4AA"
+                color: theme.neonGreen
+                background: Rectangle {
+                    radius: theme.radiusLarge
+                    color: theme.surface
+                    border.color: theme.neonGreen
+                }
+                padding: 22
             }
 
             Label {
-                text: "Restaurar Carteira Existente"
+                text: "Abrir Carteira Existente"
                 font.pixelSize: 22
                 font.bold: true
-                color: "#FFFFFF"
+                color: theme.textPrimary
                 Layout.alignment: Qt.AlignHCenter
             }
 
             Label {
                 text: "Digite suas 12 palavras de recuperação para restaurar o acesso à sua carteira 2X2Coin."
                 font.pixelSize: 14
-                color: "#8899AA"
+                color: theme.textSecondary
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
@@ -77,7 +88,7 @@ Page {
                 Label {
                     text: "Frase de Recuperação (12 palavras)"
                     font.pixelSize: 13
-                    color: "#8899AA"
+                    color: theme.textSecondary
                 }
 
                 TextArea {
@@ -85,12 +96,13 @@ Page {
                     Layout.fillWidth: true
                     height: 100
                     placeholderText: "palavra1 palavra2 palavra3 ... palavra12"
-                    color: "#FFFFFF"
+                    color: theme.textPrimary
+                    placeholderTextColor: theme.textMuted
                     font.pixelSize: 14
                     wrapMode: TextEdit.WordWrap
                     background: Rectangle {
-                        radius: 12; color: "#1A1A2E"
-                        border.color: mnemonicField.activeFocus ? "#00D4AA" : "#333355"
+                        radius: 12; color: theme.surface
+                        border.color: mnemonicField.activeFocus ? theme.electricBlue : theme.outline
                         border.width: mnemonicField.activeFocus ? 2 : 1
                     }
                 }
@@ -104,7 +116,7 @@ Page {
                     font.pixelSize: 12
                     color: {
                         var words = mnemonicField.text.trim().split(/\s+/).filter(w => w.length > 0)
-                        return words.length === 12 ? "#00D4AA" : "#8899AA"
+                        return words.length === 12 ? theme.neonGreen : theme.textSecondary
                     }
                 }
             }
@@ -113,12 +125,12 @@ Page {
             Button {
                 Layout.fillWidth: true
                 height: 44
-                text: "📋  Colar da Área de Transferência"
+                text: "Colar da Área de Transferência"
                 flat: true
-                Material.foreground: "#00D4AA"
+                Material.foreground: theme.electricBlue
                 background: Rectangle {
-                    radius: 4; color: "transparent"
-                    border.color: "#333355"; border.width: 1
+                    radius: theme.radius; color: "transparent"
+                    border.color: theme.outline; border.width: 1
                 }
                 onClicked: {
                     var pasted = app.pasteFromClipboard()
@@ -134,7 +146,7 @@ Page {
                 Label {
                     text: "Senha Adicional (opcional)"
                     font.pixelSize: 13
-                    color: "#8899AA"
+                    color: theme.textSecondary
                 }
 
                 TextField {
@@ -142,11 +154,12 @@ Page {
                     Layout.fillWidth: true
                     placeholderText: "BIP39 passphrase (deixe vazio se não usou)"
                     echoMode: TextInput.Password
-                    color: "#FFFFFF"
+                    color: theme.textPrimary
+                    placeholderTextColor: theme.textMuted
                     font.pixelSize: 14
                     background: Rectangle {
-                        radius: 12; color: "#1A1A2E"
-                        border.color: passphraseField.activeFocus ? "#00D4AA" : "#333355"
+                        radius: 12; color: theme.surface
+                        border.color: passphraseField.activeFocus ? theme.electricBlue : theme.outline
                         border.width: passphraseField.activeFocus ? 2 : 1
                     }
                 }
@@ -160,7 +173,7 @@ Page {
                 Label {
                     text: "Nova Senha de Acesso"
                     font.pixelSize: 13
-                    color: "#8899AA"
+                    color: theme.textSecondary
                 }
 
                 TextField {
@@ -168,11 +181,12 @@ Page {
                     Layout.fillWidth: true
                     placeholderText: "Senha para proteger a carteira restaurada"
                     echoMode: TextInput.Password
-                    color: "#FFFFFF"
+                    color: theme.textPrimary
+                    placeholderTextColor: theme.textMuted
                     font.pixelSize: 14
                     background: Rectangle {
-                        radius: 12; color: "#1A1A2E"
-                        border.color: newPasswordField.activeFocus ? "#00D4AA" : "#333355"
+                        radius: 12; color: theme.surface
+                        border.color: newPasswordField.activeFocus ? theme.electricBlue : theme.outline
                         border.width: newPasswordField.activeFocus ? 2 : 1
                     }
                 }
@@ -183,15 +197,15 @@ Page {
                 Layout.fillWidth: true
                 height: 44
                 radius: 8
-                color: "#0D2030"
-                border.color: "#1A3A5C"
+                color: theme.backgroundRaised
+                border.color: theme.outline
 
                 Label {
                     anchors.fill: parent
                     anchors.margins: 8
-                    text: "ℹ A restauração pode demorar alguns minutos enquanto a carteira sincroniza com a rede."
+                    text: "A restauração pode demorar alguns minutos enquanto a carteira sincroniza com a rede."
                     font.pixelSize: 12
-                    color: "#8899AA"
+                    color: theme.textSecondary
                     wrapMode: Text.WordWrap
                 }
             }
@@ -201,15 +215,15 @@ Page {
             Button {
                 Layout.fillWidth: true
                 height: 56
-                text: "↺  Restaurar Carteira"
+                text: "Abrir Carteira"
                 font.pixelSize: 16
                 font.bold: true
                 enabled: {
                     var words = mnemonicField.text.trim().split(/\s+/).filter(w => w.length > 0)
                     return words.length === 12 && newPasswordField.text.length >= 8
                 }
-                Material.background: enabled ? "#00D4AA" : "#333355"
-                Material.foreground: enabled ? "#0F0F1A" : "#666677"
+                Material.background: enabled ? theme.electricBlue : theme.slate
+                Material.foreground: enabled ? theme.textPrimary : theme.textMuted
                 onClicked: {
                     if (app.restoreWallet(mnemonicField.text.trim(), passphraseField.text)) {
                         restorePage.walletRestored()

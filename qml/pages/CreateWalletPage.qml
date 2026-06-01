@@ -125,67 +125,6 @@ Page {
 
         Item { Layout.fillHeight: true; Layout.minimumHeight: 12 }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-         Label {
-                Layout.fillWidth: true
-                text: confirmingPin ? "Confirme seu PIN" : "Crie um PIN seguro"
-                font.pixelSize: 25
-                font.bold: true
-                color: theme.textPrimary
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-        Label {
-                Layout.fillWidth: true
-                text: confirmingPin
-                      ? "Digite novamente para confirmar o acesso a carteira."
-                      : "Use 6 digitos para bloquear a wallet e proteger o no local."
-                font.pixelSize: 13
-                color: theme.textSecondary
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 10
-            spacing: 12
-
-        Repeater {
-                model: pinLength
-                delegate: Rectangle {
-                    width: 14
-                    height: 14
-                    radius: 7
-                    color: index < activePin().length ? theme.neonGreen : "transparent"
-                    border.color: index < activePin().length ? theme.neonGreen : theme.outlineStrong
-                    border.width: 1
-                }
-            }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: pinError
-            visible: pinError.length > 0
-            color: theme.danger
-            font.pixelSize: 12
-            horizontalAlignment: Text.AlignHCenter
-        }
-
-        Item { Layout.fillHeight: true; Layout.minimumHeight: 6 }
-
-        GridLayout {
-            Layout.fillWidth: true
-            Layout.maximumWidth: 320
-            Layout.alignment: Qt.AlignHCenter
-            columns: 3
-            rowSpacing: 12
-            columnSpacing: 12
-
             Repeater {
                 model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"]
                 delegate: Button {
@@ -222,6 +161,7 @@ Page {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
         }
+
         Item { Layout.fillHeight: true; Layout.minimumHeight: 8 }
     }
 
@@ -241,7 +181,7 @@ Page {
         }
 
         Label {
-            text: "Esta é a única forma de recuperar sua carteira se você perder o acesso ao dispositivo."
+            text: "Esta e a unica forma de recuperar a carteira se voce perder o dispositivo."
             font.pixelSize: 13
             color: theme.textSecondary
             wrapMode: Text.WordWrap
@@ -282,6 +222,7 @@ Page {
                             font.bold: true
                             color: theme.neonGreen
                             Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -297,6 +238,7 @@ Page {
 
             Label {
                 id: warningText
+
                 anchors.margins: 11
                 text: "Guarde offline. Nunca fotografe, publique ou envie sua frase de recuperacao."
                 font.pixelSize: 12
@@ -316,7 +258,7 @@ Page {
                 Layout.preferredHeight: 52
                 text: "Copiar"
                 flat: true
-                
+
                 Material.foreground: theme.electricBlue
                 background: Rectangle {
                     radius: theme.radius
@@ -360,7 +302,7 @@ Page {
         Label {
             text: "Digite as 12 palavras para confirmar que o backup foi salvo corretamente."
             font.pixelSize: 13
-             color: theme.textSecondary
+
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -368,7 +310,7 @@ Page {
         TextArea {
             id: verifyMnemonicField
             Layout.fillWidth: true
-            
+
             Layout.preferredHeight: 132
             placeholderText: "palavra1 palavra2 ... palavra12"
             color: theme.textPrimary
