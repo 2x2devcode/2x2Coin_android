@@ -415,3 +415,4 @@ Page {
             onClicked: createWalletPage.walletCreated()
         }
     }
+}
