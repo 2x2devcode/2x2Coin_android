@@ -20,6 +20,7 @@ Page {
     property string confirmPin: ""
     property bool confirmingPin: false
     property string pinError: ""
+
     readonly property int pinLength: 6
 
     function activePin() {
@@ -29,7 +30,6 @@ Page {
     function appendDigit(digit) {
         if (activePin().length >= pinLength)
             return
-
         if (confirmingPin)
             confirmPin += digit
         else
@@ -53,7 +53,6 @@ Page {
             pinError = ""
             return
         }
-
         if (pin !== confirmPin) {
             pinError = "Os PINs nao coincidem. Tente novamente."
             pin = ""
@@ -73,7 +72,6 @@ Page {
     header: ToolBar {
         Material.background: theme.background
         height: 58
-
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 8
@@ -95,7 +93,6 @@ Page {
                     }
                 }
             }
-
             Label {
                 text: ["PIN de Acesso", "Backup da Wallet", "Confirmacao"][currentStep]
                 font.pixelSize: 16
@@ -104,7 +101,6 @@ Page {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
             }
-
             Item { Layout.preferredWidth: 48 }
         }
     }
@@ -117,6 +113,7 @@ Page {
         background: Rectangle { color: theme.surface }
     }
 
+    // ================= PASSO 0 =================
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: theme.pageMargin
@@ -129,7 +126,7 @@ Page {
             Layout.fillWidth: true
             spacing: 8
 
-         Label {
+            Label {
                 Layout.fillWidth: true
                 text: confirmingPin ? "Confirme seu PIN" : "Crie um PIN seguro"
                 font.pixelSize: 25
@@ -137,8 +134,7 @@ Page {
                 color: theme.textPrimary
                 horizontalAlignment: Text.AlignHCenter
             }
-
-        Label {
+            Label {
                 Layout.fillWidth: true
                 text: confirmingPin
                       ? "Digite novamente para confirmar o acesso a carteira."
@@ -149,82 +145,85 @@ Page {
                 horizontalAlignment: Text.AlignHCenter
             }
 
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 10
-            spacing: 12
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 10
+                spacing: 12
 
-        Repeater {
-                model: pinLength
-                delegate: Rectangle {
-                    width: 14
-                    height: 14
-                    radius: 7
-                    color: index < activePin().length ? theme.neonGreen : "transparent"
-                    border.color: index < activePin().length ? theme.neonGreen : theme.outlineStrong
-                    border.width: 1
-                }
-            }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: pinError
-            visible: pinError.length > 0
-            color: theme.danger
-            font.pixelSize: 12
-            horizontalAlignment: Text.AlignHCenter
-        }
-
-        Item { Layout.fillHeight: true; Layout.minimumHeight: 6 }
-
-        GridLayout {
-            Layout.fillWidth: true
-            Layout.maximumWidth: 320
-            Layout.alignment: Qt.AlignHCenter
-            columns: 3
-            rowSpacing: 12
-            columnSpacing: 12
-
-            Repeater {
-                model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"]
-                delegate: Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 62
-                    enabled: modelData !== ""
-                    text: modelData === "back" ? "⌫" : modelData
-                    font.pixelSize: modelData === "back" ? 20 : 22
-                    font.bold: modelData !== "back"
-                    Material.foreground: modelData === "back" ? theme.textSecondary : theme.textPrimary
-                    background: Rectangle {
-                        radius: theme.radiusLarge
-                        color: parent.down ? theme.surfaceHigh : theme.surface
-                        border.color: parent.down ? theme.electricBlue : theme.outline
+                Repeater {
+                    model: pinLength
+                    delegate: Rectangle {
+                        width: 14
+                        height: 14
+                        radius: 7
+                        color: index < activePin().length ? theme.neonGreen : "transparent"
+                        border.color: index < activePin().length ? theme.neonGreen : theme.outlineStrong
                         border.width: 1
                     }
-                    onClicked: {
-                        pinError = ""
-                        if (modelData === "back")
-                            backspacePin()
-                        else
-                            appendDigit(modelData)
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: pinError
+                visible: pinError.length > 0
+                color: theme.danger
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Item { Layout.fillHeight: true; Layout.minimumHeight: 6 }
+
+            GridLayout {
+                Layout.fillWidth: true
+                Layout.maximumWidth: 320
+                Layout.alignment: Qt.AlignHCenter
+                columns: 3
+                rowSpacing: 12
+                columnSpacing: 12
+
+                Repeater {
+                    model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"]
+                    delegate: Button {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 62
+                        enabled: modelData !== ""
+                        text: modelData === "back" ? "⌫" : modelData
+                        font.pixelSize: modelData === "back" ? 20 : 22
+                        font.bold: modelData !== "back"
+                        Material.foreground: modelData === "back" ? theme.textSecondary : theme.textPrimary
+                        background: Rectangle {
+                            radius: theme.radiusLarge
+                            color: parent.down ? theme.surfaceHigh : theme.surface
+                            border.color: parent.down ? theme.electricBlue : theme.outline
+                            border.width: 1
+                        }
+                        onClicked: {
+                            pinError = ""
+                            if (modelData === "back")
+                                backspacePin()
+                            else
+                                appendDigit(modelData)
+                        }
                     }
                 }
             }
-        }
 
-        Label {
-            Layout.fillWidth: true
-            Layout.topMargin: 8
-            text: "O PIN e usado apenas localmente para proteger o arquivo da carteira."
-            font.pixelSize: 11
-            color: theme.textMuted
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: "O PIN e usado apenas localmente para proteger o arquivo da carteira."
+                font.pixelSize: 11
+                color: theme.textMuted
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+            }
+            
+            Item { Layout.fillHeight: true; Layout.minimumHeight: 8 }
         }
-        Item { Layout.fillHeight: true; Layout.minimumHeight: 8 }
-    }
+    } // CORREÇÃO 1: Faltava esta chave para fechar o ColumnLayout principal do Passo 0
 
+    // ================= PASSO 1 =================
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: theme.pageMargin
@@ -239,7 +238,6 @@ Page {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
-
         Label {
             text: "Esta é a única forma de recuperar sua carteira se você perder o acesso ao dispositivo."
             font.pixelSize: 13
@@ -268,14 +266,12 @@ Page {
                         anchors.fill: parent
                         anchors.margins: 8
                         spacing: 5
-
                         Label {
                             text: (index + 1) + "."
                             font.pixelSize: 11
                             color: theme.textMuted
                             Layout.preferredWidth: 18
                         }
-
                         Label {
                             text: modelData
                             font.pixelSize: 14
@@ -294,7 +290,6 @@ Page {
             radius: theme.radius
             color: "#20170B"
             border.color: theme.warning
-
             Label {
                 id: warningText
                 anchors.margins: 11
@@ -310,13 +305,11 @@ Page {
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
-
             Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 text: "Copiar"
                 flat: true
-                
                 Material.foreground: theme.electricBlue
                 background: Rectangle {
                     radius: theme.radius
@@ -326,7 +319,6 @@ Page {
                 }
                 onClicked: app.copyToClipboard(mnemonic.join(" "))
             }
-
             Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
@@ -342,6 +334,7 @@ Page {
         }
     }
 
+    // ================= PASSO 2 =================
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: theme.pageMargin
@@ -356,11 +349,10 @@ Page {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
-
         Label {
             text: "Digite as 12 palavras para confirmar que o backup foi salvo corretamente."
             font.pixelSize: 13
-             color: theme.textSecondary
+            color: theme.textSecondary
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -368,7 +360,6 @@ Page {
         TextArea {
             id: verifyMnemonicField
             Layout.fillWidth: true
-            
             Layout.preferredHeight: 132
             placeholderText: "palavra1 palavra2 ... palavra12"
             color: theme.textPrimary
@@ -387,30 +378,3 @@ Page {
             text: {
                 if (verifyMnemonicField.text.trim().split(/\s+/).length < 12)
                     return ""
-                return app.verifyMnemonic(verifyMnemonicField.text.trim())
-                       ? "Frase confirmada"
-                       : "Frase incorreta. Verifique a ordem das palavras."
-            }
-            font.pixelSize: 13
-            font.bold: true
-            color: app.verifyMnemonic(verifyMnemonicField.text.trim()) ? theme.neonGreen : theme.danger
-            visible: verifyMnemonicField.text.trim().split(/\s+/).length >= 12
-        }
-
-        Item { Layout.fillHeight: true }
-
-        Button {
-            Layout.fillWidth: true
-
-            Layout.preferredHeight: 56
-            text: "Concluir Criacao da Carteira"
-            font.pixelSize: 15
-            font.bold: true
-            enabled: app.verifyMnemonic(verifyMnemonicField.text.trim())
-            Material.foreground: enabled ? theme.onAccent : theme.textMuted
-            background: Rectangle {
-                radius: theme.radius
-                color: parent.enabled ? theme.neonGreen : theme.slate
-            }
-            onClicked: createWalletPage.walletCreated()
-        }
