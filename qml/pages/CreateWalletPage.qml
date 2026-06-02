@@ -378,3 +378,32 @@ Page {
             text: {
                 if (verifyMnemonicField.text.trim().split(/\s+/).length < 12)
                     return ""
+                return app.verifyMnemonic(verifyMnemonicField.text.trim())
+                       ? "Frase confirmada"
+                       : "Frase incorreta. Verifique a ordem das palavras."
+            }
+            font.pixelSize: 13
+            font.bold: true
+            color: app.verifyMnemonic(verifyMnemonicField.text.trim()) ? theme.neonGreen : theme.danger
+            visible: verifyMnemonicField.text.trim().split(/\s+/).length >= 12
+        }
+
+        Item { Layout.fillHeight: true }
+
+        Button {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 56
+            text: "Concluir Criacao da Carteira"
+            font.pixelSize: 15
+            font.bold: true
+            enabled: app.verifyMnemonic(verifyMnemonicField.text.trim())
+            Material.foreground: enabled ? theme.onAccent : theme.textMuted
+            background: Rectangle {
+                radius: theme.radius
+                color: parent.enabled ? theme.neonGreen : theme.slate
+            }
+            onClicked: createWalletPage.walletCreated()
+        }
+    } // CORREÇÃO 2: Faltava esta chave para fechar o ColumnLayout do Passo 2
+
+} // CORREÇÃO 3: Faltava esta chave para fechar a "Page {" principal lá do começo
